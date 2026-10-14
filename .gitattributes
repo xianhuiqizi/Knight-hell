@@ -1,0 +1,7 @@
+# Keep line endings consistent between Windows and GitHub.
+* text=auto eol=lf
+
+# Binary files: never touch their line endings.
+*.png binary
+*.xlsx binary
+*.db binary

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowremote"
+version = "0.1.0"
+description = "FlowRemote AI-RPA - mobile supervision and approval for AI-assisted data processing"
+readme = "README.md"
+requires-python = ">=3.13"
+
+# The first slice has no third-party dependencies on purpose: it runs on a
+# clean Python install with no network access. Later slices add the extras
+# below.
+dependencies = []
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "pydantic>=2.9", "pydantic-settings>=2.4"]
+xlsx = ["openpyxl>=3.1"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"

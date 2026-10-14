@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Local configuration, never committed
+.env
+
+# Generated data: rebuild it with
+#   python src/flowremote/devtools/seed.py --reset
+data/runtime/
+data/seed/
+
+# Editors and OS files
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

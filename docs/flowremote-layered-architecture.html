@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlowRemote AI-RPA - layered architecture</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --fg: #14181d;
+    --muted: #5b6572;
+    --card: #ffffff;
+    --border: #dce1e8;
+    --accent: #1f6feb;
+    --accent-soft: #e9f0fd;
+    --gate: #a86400;
+    --gate-soft: #fdf4e5;
+    --ext: #5b3ea8;
+    --ext-soft: #f1edfb;
+    --chip: #f0f2f5;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;
+      --fg: #e7eaef;
+      --muted: #9aa4b2;
+      --card: #161b21;
+      --border: #2a313a;
+      --accent: #6aa4ff;
+      --accent-soft: #16233a;
+      --gate: #e0a147;
+      --gate-soft: #2b2113;
+      --ext: #bdaef7;
+      --ext-soft: #1e1a2e;
+      --chip: #1d232b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 20px 64px;
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header h1 { margin: 0 0 6px; font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  header .meta { margin: 0; color: var(--muted); font-size: 13px; }
+  h2 { margin: 40px 0 12px; font-size: 16px; font-weight: 600; }
+  p { margin: 0 0 10px; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    margin: 20px 0 28px; padding: 14px 16px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    font-size: 13px; color: var(--muted);
+  }
+  .legend div { display: flex; align-items: center; gap: 8px; }
+  .key { font-family: var(--mono); color: var(--fg); font-size: 14px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .sw-accent { background: var(--accent); }
+  .sw-gate { background: var(--gate); }
+  .sw-ext { background: var(--ext); }
+
+  .layer {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px 18px;
+    break-inside: avoid;
+  }
+  .layer.gate { border-left-color: var(--gate); }
+  .layer.ext { border-left-color: var(--ext); }
+  .layer-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .layer-id { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .layer-name { font-size: 16px; font-weight: 600; }
+  .layer-where { font-size: 13px; color: var(--muted); }
+  .purpose { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    background: var(--chip); border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 10px; font-size: 12.5px;
+  }
+  .chip.api { background: var(--accent-soft); border-color: transparent; font-family: var(--mono); font-size: 12px; }
+  .rules { margin: 12px 0 0; padding: 0; list-style: none; }
+  .rules li {
+    position: relative; padding-left: 14px; margin-top: 4px;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .rules li::before { content: ""; position: absolute; left: 4px; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .layer.gate .rules li::before { background: var(--gate); }
+  .layer.ext .rules li::before { background: var(--ext); }
+
+  .links {
+    margin: 10px 0; padding: 10px 12px 10px 18px;
+    border-left: 2px dashed var(--border);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .link-row { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+  .dir { font-family: var(--mono); font-size: 14px; line-height: 1.4; width: 14px; flex: 0 0 14px; text-align: center; }
+  .link-row.down .dir { color: var(--accent); }
+  .link-row.up .dir { color: var(--muted); }
+  .flow { flex: 1 1 auto; }
+  .flow code { font-family: var(--mono); font-size: 12px; background: var(--chip); border-radius: 4px; padding: 1px 5px; }
+  .guard { color: var(--gate); font-size: 12.5px; }
+  .guard::before { content: "guard "; font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; margin-right: 2px; }
+  .gate-row { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+  .gate-badge {
+    flex: 0 0 auto; background: var(--gate-soft); color: var(--gate);
+    border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 600;
+    letter-spacing: 0.02em; text-transform: uppercase;
+  }
+
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+  th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td code { font-family: var(--mono); font-size: 12px; }
+  .gate-cell { color: var(--gate); font-weight: 600; }
+
+  .steps { counter-reset: step; list-style: none; margin: 0; padding: 0; }
+  .steps li { counter-increment: step; position: relative; padding-left: 34px; margin: 0 0 10px; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 1px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+  }
+  .chain {
+    margin-top: 14px; padding: 12px 16px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px; font-size: 13px; color: var(--muted);
+  }
+  .chain .key { color: var(--fg); }
+  footer { margin-top: 34px; color: var(--muted); font-size: 12.5px; }
+  footer ul { margin: 6px 0 0; padding-left: 18px; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .layer, table { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>FlowRemote AI-RPA - layered architecture</h1>
+  <p class="meta">Derived from the storyboard (TASK-1001 "Order Data Validation &amp; Sync", 11 mobile screens, one device, two targets) - draft v0.1 - 2026-10-12</p>
+  <p class="meta">Companion to <code>flowremote-prd.md</code> and <code>flowremote-state-machine-spec.md</code></p>
+</header>
+
+<div class="legend">
+  <div><span class="key">&#8595;</span> command or query, client initiates</div>
+  <div><span class="key">&#8593;</span> event, progress, or result, pushed upward</div>
+  <div><span class="key">&#8617;</span> read only</div>
+  <div><span class="swatch sw-accent"></span> product layer</div>
+  <div><span class="swatch sw-gate"></span> human gate</div>
+  <div><span class="swatch sw-ext"></span> external system of record</div>
+</div>
+
+<h2>The stack</h2>
+
+<article class="layer">
+  <div class="layer-head">
+    <span class="layer-id">L1</span>
+    <span class="layer-name">Presentation - mobile app</span>
+    <span class="layer-where">phone, 8 screens</span>
+  </div>
+  <p class="purpose">Show the authoritative state, collect the operator's intent, and expose exactly two human gates. No business rule is decided here.</p>
+  <div class="chips">
+    <span class="chip">Login and saved account</span>
+    <span class="chip">Home and device status</span>
+    <span class="chip">Task setup (source, batch, targets)</span>
+    <span class="chip">Validation progress</span>
+    <span class="chip">Awaiting review: tally, filter, exception cards</span>
+    <span class="chip">Decision controls: Accept / Edit / Skip</span>
+    <span class="chip">Execution approval summary</span>
+    <span class="chip">Execution progress</span>
+    <span class="chip">Results and activity log</span>
+    <span class="chip">App bar with notification badge</span>
+  </div>
+  <ul class="rules">
+    <li>Renders what the server reports; a disabled control mirrors a guard, it does not enforce it.</li>
+    <li>Proceed to Approval stays disabled while unresolved &gt; 0.</li>
+  </ul>
+</article>
+
+<div class="links">
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="flow">Operator intent: start validation, Accept / Edit / Skip, proceed, approve</span></div>
+  <div class="link-row up"><span class="dir">&#8593;</span><span class="flow">Rendered snapshot, review tally, progress, activity events</span></div>
+</div>
+
+<article class="layer">
+  <div class="layer-head">
+    <span class="layer-id">L2</span>
+    <span class="layer-name">Client application - phone runtime</span>
+    <span class="layer-where">no authority</span>
+  </div>
+  <p class="purpose">Keep the last known state, queue intent while the network is unreliable, and reconcile on reconnect.</p>
+  <div class="chips">
+    <span class="chip">Session store (work email, token, role)</span>
+    <span class="chip">Task snapshot cache</span>
+    <span class="chip">Event stream client with resumable cursor</span>
+    <span class="chip">Optimistic decision queue</span>
+    <span class="chip">Progress subscriptions</span>
+    <span class="chip">Gate notifications</span>
+  </div>
+  <ul class="rules">
+    <li>On <code>state_conflict</code> the client drops local guesses and re-renders from the server snapshot.</li>
+    <li>A queued decision or approval must survive a dropped connection (INV-12).</li>
+  </ul>
+</article>
+
+<div class="links">
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="flow">Command with idempotency key: <code>decisionId</code>, <code>approvalId</code>, <code>attempt</code>, <code>stateVersion</code></span></div>
+  <div class="link-row up"><span class="dir">&#8593;</span><span class="flow">State feed: <code>state.changed</code> with counters, <code>proceedEnabled</code>, <code>reasonCode</code></span></div>
+</div>
+
+<article class="layer">
+  <div class="layer-head">
+    <span class="layer-id">L3</span>
+    <span class="layer-name">Interface - the contract</span>
+    <span class="layer-where">one boundary, versioned</span>
+  </div>
+  <p class="purpose">Every layer boundary is one contract: commands are idempotent, queries are cheap, events are resumable.</p>
+  <div class="chips">
+    <span class="chip api">startValidation</span>
+    <span class="chip api">recordDecision(accept|edit|skip)</span>
+    <span class="chip api">reopenDecision</span>
+    <span class="chip api">proceedToApproval</span>
+    <span class="chip api">approveAndExecute</span>
+    <span class="chip api">retryExecution</span>
+    <span class="chip api">cancelTask</span>
+    <span class="chip api">taskSnapshot</span>
+    <span class="chip api">exceptions?filter=</span>
+    <span class="chip api">validationProgress</span>
+    <span class="chip api">executionProgress</span>
+    <span class="chip api">activityLog?cursor=</span>
+    <span class="chip api">stream state.changed</span>
+  </div>
+  <ul class="rules">
+    <li>Guard names match the state machine spec: <code>unresolved = 0</code>, <code>approvedCount &gt; 0</code>, <code>approval not yet recorded</code>.</li>
+    <li>Guards are evaluated server-side. The client may only mirror the outcome.</li>
+  </ul>
+</article>
+
+<div class="links">
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="flow">Validated command, <code>stateVersion</code> checked before it is applied</span></div>
+  <div class="link-row up"><span class="dir">&#8593;</span><span class="flow">Authoritative state, counters, <code>proceedEnabled</code>, reason codes</span></div>
+  <div class="gate-row"><span class="gate-badge">Gate 1 - review</span><span><span class="flow">Proceed to Approval is released only when <code>unresolved = 0</code>.</span></span></div>
+  <div class="gate-row"><span class="gate-badge">Gate 2 - approval</span><span><span class="flow"><code>approveAndExecute</code> is the only event that releases a write to OA or BI.</span></span></div>
+</div>
+
+<article class="layer gate">
+  <div class="layer-head">
+    <span class="layer-id">L4</span>
+    <span class="layer-name">Control plane - backend services</span>
+    <span class="layer-where">state authority</span>
+  </div>
+  <p class="purpose">Own the task state machine, the review tally, the approval, and the audit trail. Everything else reports to this layer.</p>
+  <div class="chips">
+    <span class="chip">Task orchestrator (transitions T1-T19)</span>
+    <span class="chip">Review tally service</span>
+    <span class="chip">Approval service (single use per attempt)</span>
+    <span class="chip">Exception service (per record, per field)</span>
+    <span class="chip">Dispatch and queue to the device agent</span>
+    <span class="chip">Activity log (append only)</span>
+    <span class="chip">Telemetry and analytics</span>
+  </div>
+  <ul class="rules">
+    <li>Tally invariant: <code>accepted + manual + skipped + unresolved = exceptionCount</code> at every moment (INV-6).</li>
+    <li>State chain in the storyboard: 100 input, 88 passed, 12 exceptions, 8 accepted, 3 manual, 1 skipped, 99 ready.</li>
+    <li>Every state change appends one activity event with actor or engine and timestamp (BR-10).</li>
+  </ul>
+</article>
+
+<div class="links">
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="flow">Dispatch: <code>startValidation</code>, then <code>targetActions(approved set)</code> with one action per target</span></div>
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="guard">no dispatch before an approval is recorded (BR-2, INV-2)</span></div>
+  <div class="link-row up"><span class="dir">&#8593;</span><span class="flow">Progress, heartbeat, per-target outcome, failure reason codes</span></div>
+</div>
+
+<article class="layer">
+  <div class="layer-head">
+    <span class="layer-id">L5</span>
+    <span class="layer-name">Automation runtime - device side</span>
+    <span class="layer-where">Office-PC-01, Online</span>
+  </div>
+  <p class="purpose">Do the mechanical work where the source and the target systems are actually reachable.</p>
+  <div class="chips">
+    <span class="chip">Device agent (registration, dispatch intake, heartbeat)</span>
+    <span class="chip">FlowRemote Engine - validation</span>
+    <span class="chip">RPA Execution Engine - write and sync</span>
+    <span class="chip">Target connectors: OA, BI</span>
+    <span class="chip">Progress and event reporter</span>
+  </div>
+  <ul class="rules">
+    <li>Validation is read-only: it never updates OA or BI (BR-1).</li>
+    <li>The write set is the approved set: 99 written and synced, 1 skipped excluded (BR-3).</li>
+    <li>The demo's 3 s auto-advance lives in a simulated runtime, not in the product.</li>
+  </ul>
+</article>
+
+<div class="links">
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="flow">Read the source batch; request a suggestion per flagged field</span></div>
+  <div class="link-row up"><span class="dir">&#8593;</span><span class="flow">Suggestion value, confidence, reason</span></div>
+  <div class="link-row up"><span class="dir">&#8617;</span><span class="flow">Source records and the workflow template are read by L5 and L4 respectively</span></div>
+</div>
+
+<article class="layer">
+  <div class="layer-head">
+    <span class="layer-id">L6</span>
+    <span class="layer-name">Intelligence and data services</span>
+    <span class="layer-where">shared services</span>
+  </div>
+  <p class="purpose">Supply what the run needs to be possible: the batch to read, a template to follow, and the advice a human reviews.</p>
+  <div class="chips">
+    <span class="chip">AI suggestion service (customer registry, order history)</span>
+    <span class="chip">Confidence thresholds and rationale text</span>
+    <span class="chip">Company Workspace - source workbook</span>
+    <span class="chip">Workflow template store (predefined workflow)</span>
+  </div>
+  <ul class="rules">
+    <li>A suggestion is advice, never a decision: 98% unique match, 84% no reliable suggestion, 68% below threshold in the storyboard.</li>
+    <li>Read by L4 (template, batch definition, thresholds) and by L5 (source file, suggestions).</li>
+  </ul>
+</article>
+
+<div class="links">
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="flow">After approval only: write 99 records to OA (primary), then sync the same 99 to BI (secondary)</span></div>
+  <div class="link-row up"><span class="dir">&#8593;</span><span class="flow">Per-target outcome: accepted, rejected, partial</span></div>
+  <div class="link-row down"><span class="dir">&#8595;</span><span class="guard">the same record ids to both targets, never a second copy (BR-5, INV-5)</span></div>
+</div>
+
+<article class="layer ext">
+  <div class="layer-head">
+    <span class="layer-id">L7</span>
+    <span class="layer-name">Systems of record - external</span>
+    <span class="layer-where">owned by other teams</span>
+  </div>
+  <p class="purpose">Hold the truth about orders and reporting. FlowRemote writes into them; it does not own them.</p>
+  <div class="chips">
+    <span class="chip">OA - Order Administration (primary target)</span>
+    <span class="chip">BI - Business Intelligence (secondary target)</span>
+  </div>
+  <ul class="rules">
+    <li>OA and BI receive the same record set, not 198 records for 99 inputs.</li>
+    <li>The phone has no network path to either system; only the device side writes.</li>
+  </ul>
+</article>
+
+<h2>Cross-cutting concerns</h2>
+<div class="layer">
+  <div class="chips">
+    <span class="chip">Identity and session (work email sign-in)</span>
+    <span class="chip">Authorization: who may approve</span>
+    <span class="chip">Audit: append-only activity log</span>
+    <span class="chip">Notifications: gate reached, bell badge</span>
+    <span class="chip">Observability: heartbeat, stale detection, reason codes</span>
+    <span class="chip">Configuration: workflow template, target set, thresholds</span>
+    <span class="chip">Idempotency: decision, approval, attempt</span>
+  </div>
+  <ul class="rules">
+    <li>These are used by every layer, so they are owned by L4 and consumed, never re-implemented, by the rest.</li>
+  </ul>
+</div>
+
+<h2>Which layer owns which state</h2>
+<table>
+  <thead>
+    <tr><th>Task state</th><th>Decided by</th><th>Surface</th><th>Human gate</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Unauthenticated</td><td>L4 identity, cached in L2</td><td>Login</td><td class="gate-cell">Sign-in</td></tr>
+    <tr><td>Idle</td><td>L4 orchestrator</td><td>Home</td><td></td></tr>
+    <tr><td>Ready</td><td>L4 orchestrator, template from L6</td><td>Task setup</td><td></td></tr>
+    <tr><td>Validating</td><td>L5 FlowRemote Engine, reported through L4</td><td>Validating</td><td></td></tr>
+    <tr><td>Review Required</td><td>L4 tally service</td><td>Awaiting review</td><td class="gate-cell">Gate 1: per-field decisions</td></tr>
+    <tr><td>Pending Approval</td><td>L4 approval service</td><td>Execution approval</td><td class="gate-cell">Gate 2: approve and execute</td></tr>
+    <tr><td>Executing</td><td>L5 RPA Execution Engine into L7</td><td>Executing</td><td></td></tr>
+    <tr><td>Complete</td><td>L4 summary and activity log</td><td>Results</td><td></td></tr>
+  </tbody>
+</table>
+
+<h2>Build order this diagram implies</h2>
+<ol class="steps">
+  <li><strong>Freeze L3 first.</strong> Commands, queries, the state feed payload, and the idempotency keys. Every other layer is developed against it, and it is the only boundary that both sides must agree on.</li>
+  <li><strong>Implement L4 as pure logic.</strong> The state machine, the tally, and the two gates, covered by tests derived from INV-1 to INV-14. This layer can run before any device exists.</li>
+  <li><strong>Stub L5 behind the same contract.</strong> A simulated device agent that emits progress and completion lets L1 and L2 be built and demoed with the storyboard's numbers.</li>
+  <li><strong>Add L6 and L7 last.</strong> Suggestion quality and real target connectors only change behaviour inside L5; they must not change L1 to L4.</li>
+</ol>
+
+<div class="chain">
+  <span class="key">Storyboard chain carried by these layers:</span>
+  100 input &#8594; 88 passed + 12 exceptions &#8594; 8 accepted + 3 manual + 1 skipped &#8594; 99 approved &#8594; OA write 99 and BI sync 99 &#8594; 99/100 in 42.8 s, 99.0%
+</div>
+
+<footer>
+  <p>Not shown in this diagram, by design of the storyboard: failure and recovery paths (ValidationFailed, ExecutionPartial, retry and reconciliation), multi-device routing, and workflow authoring. See the state machine specification for the recommended states and the PRD for the open questions (Q1-Q12).</p>
+  <ul>
+    <li>Evidence: storyboard screens 1-11 and the 4 board annotations (Proceed gated on unresolved = 0; no write before approval; OA and BI get the same 99; timed auto-transitions in the demo).</li>
+  </ul>
+</footer>
+
+</div>
+</body>
+</html>
