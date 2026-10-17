@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlowRemote - interactive demo</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="mark">FR</span>
+      <span class="brand-text">FlowRemote<small>Live RPA · demo</small></span>
+    </a>
+    <div class="who" id="who" hidden>
+      <span class="badge" id="who-role"></span>
+      <span class="who-name" id="who-name"></span>
+      <button class="btn-ghost" id="signout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="page" id="view"></main>
+
+  <footer class="foot">
+    <span>Prototype demo - accounts and data live in this browser only.</span>
+    <button class="link" id="reset" type="button">Reset demo data</button>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

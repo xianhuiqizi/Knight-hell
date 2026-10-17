@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Approval - {{ task.id }}{% endblock %}
+{% block content %}
+<a class="back" href="/tasks/{{ task.id }}">&larr; {{ task.id }}</a>
+<div class="page-head">
+  <p class="eyebrow">{{ task.id }} · Approval stage</p>
+  <h1>Execution Approval</h1>
+  <p class="sub">Review the validation results before approving the write to
+    {{ task.primary_target }} and {{ task.secondary_target }}.</p>
+</div>
+{% if error %}<p class="alert">{{ error }}</p>{% endif %}
+<div class="stats stats-wide">
+  <div><span class="n">{{ task.batch_size }}</span><span class="l">input</span></div>
+  <div><span class="n">{{ task.skipped }}</span><span class="l">skipped</span></div>
+  <div><span class="n">{{ task.ready }}</span><span class="l">ready</span></div>
+  <div><span class="n">{{ unresolved }}</span><span class="l">unresolved</span></div>
+</div>
+
+{% if approval %}
+<div class="gate gate-open">
+  <div>
+    <strong>Approved</strong>
+    <span class="small muted">{{ approval.approved_count }} records approved by
+      {{ approval.approver_name }} · {{ approval.approved_at }}</span>
+  </div>
+  <span class="badge badge-state">{{ task.status_label }}</span>
+</div>
+{% else %}
+<div class="panel">
+  <h2>Source document</h2>
+  <p class="mono">{{ task.source_file }} <span class="badge">XLSX data feed</span></p>
+  <p class="muted small">{{ task.source_location }}</p>
+</div>
+<div class="panel">
+  <h2>Target endpoints and actions</h2>
+  <ul class="targets">
+    <li>
+      <strong>{{ task.primary_target }}</strong>
+      <span class="badge">Primary target</span>
+      <span class="muted small">Write {{ task.ready }} approved records</span>
+    </li>
+    <li>
+      <strong>{{ task.secondary_target }}</strong>
+      <span class="badge">Secondary sync</span>
+      <span class="muted small">Sync the same {{ task.ready }} records, never a second copy</span>
+    </li>
+  </ul>
+</div>
+<p class="notice">Validation does not write to OA or BI. Only this approval releases the write.</p>
+<div class="approval-actions">
+  <form method="post" action="/tasks/{{ task.id }}/approval">
+    <button class="btn-primary" type="submit">Approve &amp; Execute</button>
+  </form>
+  <form method="post" action="/tasks/{{ task.id }}/back-to-review">
+    <button class="btn-ghost" type="submit">Back to review</button>
+  </form>
+</div>
+{% endif %}
+<p class="note">Execution itself — progress per target and results — arrives in P5.</p>
+{% endblock %}

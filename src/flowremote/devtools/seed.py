@@ -28,6 +28,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from flowremote.control_plane.db import PROJECT_ROOT, Database, utc_now  # noqa: E402
+from flowremote.control_plane.auth import hash_password  # noqa: E402
 from flowremote.devtools.xlsx_writer import write_xlsx  # noqa: E402
 
 TASK_ID = "TASK-1001"
@@ -37,6 +38,8 @@ SOURCE_LOCATION = "Company Workspace"
 PRIMARY_TARGET = "OA - Order Administration"
 SECONDARY_TARGET = "BI - Business Intelligence"
 OPERATOR_EMAIL = "alex.morgan@example.com"
+ADMIN_EMAIL = "admin@example.com"
+DEMO_PASSWORD = "flowremote-demo"
 SEED = 20260930
 BATCH_SIZE = 100
 
@@ -183,7 +186,9 @@ def wipe_task(db: Database) -> None:
         db.execute("DELETE FROM exceptions WHERE task_id = ?", (TASK_ID,))
         db.execute("DELETE FROM source_records WHERE task_id = ?", (TASK_ID,))
         db.execute("DELETE FROM tasks WHERE id = ?", (TASK_ID,))
-        db.execute("DELETE FROM users WHERE email = ?", (OPERATOR_EMAIL,))
+        db.execute(
+            "DELETE FROM users WHERE email IN (?, ?)", (OPERATOR_EMAIL, ADMIN_EMAIL)
+        )
 
 
 def seed_database(db: Database, orders: list[dict], exceptions: list[dict]) -> None:
@@ -191,8 +196,16 @@ def seed_database(db: Database, orders: list[dict], exceptions: list[dict]) -> N
     wipe_task(db)
     with db.transaction():
         db.execute(
-            "INSERT INTO users (id, name, email, role, device, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            ("USR-0001", "Alex Morgan", OPERATOR_EMAIL, "operator", "Office-PC-01", now),
+            "INSERT INTO users (id, name, email, role, device, password_hash, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("USR-0001", "Alex Morgan", OPERATOR_EMAIL, "operator", "Office-PC-01",
+             hash_password(DEMO_PASSWORD), now),
+        )
+        db.execute(
+            "INSERT INTO users (id, name, email, role, device, password_hash, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("USR-0002", "Ada Admin", ADMIN_EMAIL, "admin", "Office-PC-01",
+             hash_password(DEMO_PASSWORD), now),
         )
         db.execute(
             "INSERT INTO tasks (id, workflow, batch_size, status, source_file, source_location,"
@@ -281,7 +294,7 @@ def main() -> int:
     args = parser.parse_args()
 
     db = Database(args.db)
-    if args.reset and db.engine == "sqlite":
+    if args.reset and db.engine == "sqlite" and not db.is_memory:
         target = db.sqlite_path()
         for path in (target, Path(str(target) + "-wal"), Path(str(target) + "-shm")):
             if path.exists():
@@ -307,6 +320,9 @@ def main() -> int:
         print(f"workbook  : {workbook_path.relative_to(PROJECT_ROOT)} ({len(orders)} orders)")
         print(f"database  : {db.url}\n")
         print("seeded 1 task, 100 source records, 12 exceptions, 0 decisions, 0 approvals\n")
+        print(f"demo accounts (password: {DEMO_PASSWORD})")
+        print(f"  operator : {OPERATOR_EMAIL}")
+        print(f"  admin    : {ADMIN_EMAIL}\n")
         return 0 if verify(db) else 1
     finally:
         db.close()

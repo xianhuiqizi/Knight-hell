@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ task.id }} - FlowRemote{% endblock %}
+{% block content %}
+<a class="back" href="/">&larr; All tasks</a>
+<div class="page-head">
+  <p class="eyebrow">{{ task.id }} · {{ task.status_label }}</p>
+  <h1>{{ task.workflow }}</h1>
+  <p class="sub">{{ task.source_file }} · {{ task.source_location }}</p>
+</div>
+{% if error %}<p class="alert">{{ error }}</p>{% endif %}
+<div class="stats stats-wide">
+  <div><span class="n">{{ task.batch_size }}</span><span class="l">input</span></div>
+  <div><span class="n">{{ task.passed }}</span><span class="l">passed</span></div>
+  <div><span class="n">{{ task.flagged }}</span><span class="l">flagged</span></div>
+  <div><span class="n">{{ unresolved }}</span><span class="l">unresolved</span></div>
+  <div><span class="n">{{ task.ready }}</span><span class="l">ready to write</span></div>
+</div>
+
+{% if approval %}
+<div class="gate gate-open">
+  <div>
+    <strong>Approved</strong>
+    <span class="small muted">{{ approval.approved_count }} records approved by
+      {{ approval.approver_name }} · {{ approval.approved_at }}</span>
+  </div>
+  <span class="badge badge-state">{{ task.status_label }}</span>
+</div>
+{% elif task.status == 'pending_approval' %}
+<div class="gate gate-open">
+  <div>
+    <strong>Ready for approval</strong>
+    <span class="small muted">Every exception is resolved.</span>
+  </div>
+  <a class="btn-gate" href="/tasks/{{ task.id }}/approval">Open approval</a>
+</div>
+{% elif proceed_enabled %}
+<div class="gate gate-open">
+  <div>
+    <strong>Proceed to approval</strong>
+    <span class="small muted">Every exception is resolved.</span>
+  </div>
+  <form method="post" action="/tasks/{{ task.id }}/proceed">
+    <button class="btn-gate" type="submit">Proceed</button>
+  </form>
+</div>
+{% else %}
+<div class="gate gate-closed">
+  <div>
+    <strong>Proceed to approval</strong>
+    <span class="small muted">{{ unresolved }} unresolved exception(s) still block approval.</span>
+  </div>
+  <button class="btn-gate" type="button" disabled>Blocked</button>
+</div>
+{% endif %}
+
+<h2 class="section">Exceptions</h2>
+{% if exceptions %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Record</th><th>Issue</th><th>Field(s)</th><th>Original</th>
+        <th>Suggestion</th><th>Match</th><th>Status</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in exceptions %}
+      <tr>
+        <td class="mono">{{ item.record_id }}</td>
+        <td>{{ item.issue }}</td>
+        <td class="mono small">{{ item.flagged_fields }}</td>
+        <td class="muted">{{ item.original_value }}</td>
+        <td>{{ item.suggestion or "(none)" }}</td>
+        <td class="mono">{{ item.confidence_label }}</td>
+        <td><span class="badge badge-{{ item.status }}">{{ item.status_label }}</span></td>
+        <td class="actions">
+          {% if item.status == 'unresolved' %}
+          <form method="post" class="action-form"
+                action="/tasks/{{ task.id }}/exceptions/{{ item.record_id }}/decisions">
+            <input type="hidden" name="decision_id" value="{{ item.decision_id }}">
+            <button class="btn-mini" name="action" value="accept"
+                    {% if not item.suggestion %}disabled title="No suggestion to accept"{% endif %}>Accept</button>
+            <button class="btn-mini btn-mini-skip" name="action" value="skip">Skip</button>
+            <input class="mini-input" type="text" name="value" placeholder="value" size="6"
+                   aria-label="New value for {{ item.record_id }}">
+            <button class="btn-mini" name="action" value="edit">Save</button>
+          </form>
+          {% else %}
+          <span class="muted small">{{ item.resolved_value or "-" }}
+            {%- if item.reviewer_name %} · {{ item.reviewer_name }}{% endif %}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="muted">No exceptions in this batch.</p>
+{% endif %}
+<p class="note">Accept keeps the AI value, Edit saves your own value, Skip removes the record from
+  the run. Every action is written to Decisions. The approval page itself arrives in P4.</p>
+{% endblock %}

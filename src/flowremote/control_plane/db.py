@@ -69,6 +69,11 @@ class Database:
         self._conn: Any = None
 
     # -- connection ------------------------------------------------------
+    @property
+    def is_memory(self) -> bool:
+        """True for the in-memory URL, which tests use to avoid the disk."""
+        return self.engine == "sqlite" and self.url.split("sqlite://", 1)[1].lstrip("/") == ":memory:"
+
     def sqlite_path(self) -> Path:
         raw = self.url.split("sqlite:///", 1)[1]
         path = Path(raw)
@@ -76,9 +81,16 @@ class Database:
 
     def connect(self) -> "Database":
         if self.engine == "sqlite":
-            path = self.sqlite_path()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            conn = sqlite3.connect(path, isolation_level=None)
+            if self.is_memory:
+                conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
+            else:
+                path = self.sqlite_path()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                # FastAPI runs a sync dependency and a sync handler in different
+                # threadpool threads, so the connection must be allowed to move
+                # between them. sqlite3 is serialized by default, and one
+                # connection is used by one request at a time.
+                conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
             conn.execute("PRAGMA journal_mode = WAL")

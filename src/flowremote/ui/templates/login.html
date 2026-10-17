@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sign in - FlowRemote{% endblock %}
+{% block content %}
+<section class="auth">
+  <div class="auth-card">
+    <h1>FlowRemote AI-RPA</h1>
+    <p class="sub">Review and control business workflows from your phone.</p>
+    {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+    <form method="post" action="/login">
+      <input type="hidden" name="next" value="{{ next }}">
+      <label>Work email
+        <input type="email" name="email" value="{{ email|default('') }}" required autofocus>
+      </label>
+      <label>Password
+        <input type="password" name="password" required>
+      </label>
+      <button class="btn-primary" type="submit">Log in</button>
+    </form>
+    <p class="hint">No account yet? <a href="/signup">Create one</a></p>
+  </div>
+</section>
+{% endblock %}

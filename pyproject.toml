@@ -12,7 +12,17 @@ requires-python = ">=3.13"
 # The first slice has no third-party dependencies on purpose: it runs on a
 # clean Python install with no network access. Later slices add the extras
 # below.
-dependencies = []
+dependencies = [
+    "alembic>=1.20.0",
+    "fastapi>=0.143.3",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "openpyxl>=3.1.5",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.0",
+    "sqlalchemy>=2.1.5",
+    "uvicorn>=0.54.0",
+]
 
 [project.optional-dependencies]
 api = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "pydantic>=2.9", "pydantic-settings>=2.4"]
@@ -25,3 +35,10 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+]
