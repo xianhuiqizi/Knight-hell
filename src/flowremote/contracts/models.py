@@ -29,7 +29,7 @@ from flowremote.contracts.enums import (
 )
 from flowremote.contracts.timeutil import utc_now
 
-RECORD_ID_PATTERN = re.compile(r"^ORD-\d{3}$")
+RECORD_ID_PATTERN = re.compile(r"^ORD-\d{3,5}$")
 
 
 class ModelError(ValueError):

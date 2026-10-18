@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Tasks - FlowRemote{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head page-head-actions">
+  <div>
   <h1>Tasks</h1>
   <p class="sub">{{ "Every task in the workspace (admin view)" if user.role == 'admin' else "Tasks you own" }}</p>
+  </div>
+  <a class="btn-gate" href="/tasks/new">+ New task</a>
 </div>
 {% if tasks %}
 <div class="task-list">
@@ -15,15 +18,19 @@
     </div>
     <h2>{{ task.workflow }}</h2>
     <p class="task-file">{{ task.source_file }} · {{ task.batch_size }} records</p>
+    {% if task.status in ('ready', 'validating') %}
+    <p class="small muted">File saved · {{ 'Awaiting validation' if task.status == 'ready' else 'Validation in progress' }}</p>
+    {% else %}
     <div class="stats">
       <div><span class="n">{{ task.passed }}</span><span class="l">passed</span></div>
       <div><span class="n">{{ task.exceptions }}</span><span class="l">exceptions</span></div>
       <div><span class="n">{{ task.unresolved }}</span><span class="l">unresolved</span></div>
     </div>
+    {% endif %}
   </a>
   {% endfor %}
 </div>
 {% else %}
-<div class="empty"><p>No tasks yet.</p></div>
+<div class="empty"><p>No tasks yet. Create a task and upload your first Excel workbook.</p></div>
 {% endif %}
 {% endblock %}

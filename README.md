@@ -16,8 +16,8 @@ per-user visibility.
   Accept / Edit / Skip endpoint, the approval page and the approval write.
 - `src/flowremote/ui/` - Jinja templates and one dark stylesheet.
 - `src/flowremote/devtools/` - the demonstration data generator.
-- `tests/` - 96 tests: model rules, review rules, database constraints,
-  passwords, sessions, authentication, isolation, decisions and approval.
+- `tests/` - model rules, review rules, database constraints, passwords, sessions,
+  authentication, isolation, decisions, approval and workbook uploads.
 
 ## Run it
 
@@ -34,10 +34,59 @@ uv run python src\flowremote\devtools\seed.py --reset --verify
 uv run uvicorn flowremote.api.app:app --reload --host 127.0.0.1 --port 8000
 
 # 4. tests
-uv run python -m unittest discover -s tests
+uv run python -m pytest tests -q
 ```
 
 Open `http://127.0.0.1:8000`.
+
+## Creating a task
+
+Sign in and choose **+ New task** on the home page, or open `/tasks/new`.
+Enter a task name and choose an `.xlsx` workbook (up to 10 MB). The first
+worksheet uses its first non-empty row as headers (within the first 1,000 rows),
+followed by 1–10,000 rows, with at most 256 columns. Leading blank rows are
+skipped; blank data rows are ignored when counting the batch size. A title or
+explanatory text before the actual headers is not automatically detected.
+
+The task belongs to the signed-in user. Uploading automatically validates the
+orders and opens **Review required**, with counts and exceptions from that file.
+The original workbook is saved under `data/runtime/uploads/` with a generated
+filename; `FLOWREMOTE_UPLOAD_DIR` can override this directory. Back up this
+directory together with the database. Owners and admins can download the
+original from the task page; other operators cannot see or download it.
+
+Download `/orders-template.xlsx` from the new-task form. Required fields:
+`order_id`, `customer_name`, `customer_id`, `quantity`, `unit_price`, `amount`,
+`order_date`. Common English and Chinese headers are supported, including
+订单号、客户名称、客户编号、数量、单价、金额、订单日期. Columns may be reordered;
+extra columns are ignored. Missing or ambiguous required columns reject the
+upload without saving a partial task. Save IDs as text to retain leading zeros.
+
+The current `orders-v1` rules check:
+
+- All seven fields are required. IDs are compared exactly after trimming spaces;
+  duplicate order IDs within the same file flag every affected row.
+- Quantity is a positive whole number up to 1 billion.
+- Unit price and amount are non-negative numbers with at most two decimal
+  places, no larger than 1 trillion. Numeric text uses a dot decimal separator
+  and no grouping separators. Amount must equal quantity × unit price exactly.
+- Dates accept actual Excel dates, `YYYY-MM-DD` and `YYYY/MM/DD`; impossible
+  dates are rejected. Formulas are not evaluated: paste their values first.
+- Multiple issues on one order produce one exception with all reasons. Its Excel
+  row number, original values, original workbook and rule version are retained.
+  Only an amount-only error receives a quantity × unit price suggestion. No
+  customer registry lookup or AI inference is performed.
+
+**Accept** applies the calculated amount. **Edit order → Save & recheck** checks
+all fields and uniqueness again before saving. **Skip** excludes an order.
+Corrections and review decisions commit together, while original values and
+initial analysis counts remain unchanged for audit. Unresolved exceptions block
+approval. Exceptions paginate in groups of 100; the gate counts the whole task.
+
+Tasks uploaded before this feature retain their files and have a **Validate
+uploaded orders** button. Repeat validation does not erase existing decisions.
+The existing seeded demonstration task and its exceptions remain explicitly
+labelled demo data. Real OA/BI execution is still not implemented.
 
 ## Reviewing an exception
 

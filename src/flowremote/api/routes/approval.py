@@ -130,6 +130,8 @@ def back_to_review(
         raise HTTPException(status_code=404, detail="task not found")
     if context["approval"]:
         return _forbidden(request, context, "This batch is already approved.")
+    if context["task"]["status"] != "pending_approval":
+        return _forbidden(request, context, "This batch is not waiting for approval.")
     db.execute(
         "UPDATE tasks SET status = 'review_required', updated_at = ? WHERE id = ?",
         (utc_now(), task_id),

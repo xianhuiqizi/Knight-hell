@@ -7,6 +7,7 @@ they own; an admin sees every task. Asking for a task you cannot see returns
 
 from __future__ import annotations
 
+import json
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -21,7 +22,7 @@ from flowremote.control_plane.db import Database
 router = APIRouter()
 
 TASK_STATUS_LABELS = {
-    "ready": "Ready",
+    "ready": "Awaiting validation",
     "validating": "Validating",
     "review_required": "Review required",
     "pending_approval": "Pending approval",
@@ -107,25 +108,35 @@ def home(
     )
 
 
-def load_task_page(db: Database, user: User, task_id: str) -> dict | None:
+def load_task_page(db: Database, user: User, task_id: str, page: int = 1) -> dict | None:
     """Everything the task page needs, or None when the task is not visible."""
     where, params = _visibility(user, task_id)
     rows = db.query(SUMMARY_SQL + where, params)
     if not rows:
         return None
     task = _decorate_task(rows[0])
+    total_pages = max(1, (task["exceptions"] + 99) // 100)
+    page = min(max(1, page), total_pages)
     exceptions = [
         _decorate_exception(row)
         for row in db.query(
             "SELECT e.record_id, e.issue, e.flagged_fields, e.original_value,"
             " e.suggestion, e.confidence, e.reason, e.status, e.resolved_value,"
-            " e.reviewed_at, u.name AS reviewer_name"
+            " e.reviewed_at, u.name AS reviewer_name, i.excel_row, i.order_id, i.current_json"
             " FROM exceptions e LEFT JOIN users u ON u.id = e.reviewed_by"
-            " WHERE e.task_id = ? ORDER BY e.record_id",
-            (task_id,),
+            " LEFT JOIN order_inputs i ON i.task_id = e.task_id AND i.record_id = e.record_id"
+            " WHERE e.task_id = ? ORDER BY i.excel_row, e.record_id LIMIT 100 OFFSET ?",
+            (task_id, (page - 1) * 100),
         )
     ]
-    unresolved = sum(1 for item in exceptions if item["status"] == "unresolved")
+    for item in exceptions:
+        item["edit_values"] = json.loads(item["current_json"]) if item["current_json"] else None
+    unresolved = task["unresolved"]
+    validations = db.query("SELECT * FROM task_validations WHERE task_id = ?", (task_id,))
+    validation = validations[0] if validations else None
+    if validation:
+        validation["summary"] = json.loads(validation["summary_json"])
+        validation["issue_count"] = sum(validation["summary"].values())
     approvals = db.query(
         "SELECT a.attempt, a.approved_count, a.skipped_count, a.approved_at,"
         " u.name AS approver_name"
@@ -138,9 +149,20 @@ def load_task_page(db: Database, user: User, task_id: str) -> dict | None:
         "task": task,
         "exceptions": exceptions,
         "unresolved": unresolved,
-        "proceed_enabled": unresolved == 0,
+        "proceed_enabled": unresolved == 0 and task["status"] == "review_required",
+        "upload": next(
+            iter(
+                db.query(
+                    "SELECT worksheet, byte_size FROM task_uploads WHERE task_id = ?", (task_id,)
+                )
+            ),
+            None,
+        ),
         "approval": approvals[0] if approvals else None,
         "error": None,
+        "validation": validation,
+        "page": page,
+        "total_pages": total_pages,
     }
 
 
@@ -155,10 +177,11 @@ def task_detail(
     request: Request,
     user: User | None = Depends(current_user),
     db: Database = Depends(get_db),
+    page: int = 1,
 ):
     if user is None:
         return RedirectResponse("/login", status_code=303)
-    context = load_task_page(db, user, task_id)
+    context = load_task_page(db, user, task_id, page)
     if context is None:
         raise HTTPException(status_code=404, detail="task not found")
     return render(request, "task.html", context)

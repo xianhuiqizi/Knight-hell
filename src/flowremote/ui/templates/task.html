@@ -8,6 +8,40 @@
   <p class="sub">{{ task.source_file }} · {{ task.source_location }}</p>
 </div>
 {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+{% if task.status in ('ready', 'validating') %}
+<div class="upload-card">
+  <h2>{{ 'Workbook uploaded' if task.status == 'ready' else 'Validation in progress' }}</h2>
+  <p><strong>{{ task.batch_size }}</strong> data rows{% if upload %} in {{ upload.worksheet }}{% endif %}</p>
+  <p class="muted">The original Excel file is saved. Order validation and analysis have not
+    completed, so no passed records or exceptions are available yet.</p>
+  {% if upload %}<a class="btn-gate" href="/tasks/{{ task.id }}/source">Download original Excel</a>{% endif %}
+  {% if upload and task.status == 'ready' %}
+  <form method="post" action="/tasks/{{ task.id }}/validate">
+    <button class="btn-gate" type="submit">Validate uploaded orders</button>
+  </form>
+  <p class="small"><a href="/orders-template.xlsx">Download order template</a> if your file needs different headers.</p>
+  {% endif %}
+</div>
+{% else %}
+{% if validation %}
+<section class="panel validation-panel">
+  <h2>Analysis of your uploaded orders</h2>
+  <p class="small muted">{{ upload.worksheet }} · Headers on Excel row {{ validation.header_row }} ·
+    Checked {{ validation.validated_at }} · {{ validation.rule_version }}</p>
+  <p>{{ task.batch_size }} orders checked · {{ task.passed }} passed · {{ task.flagged }} flagged orders ·
+    {{ validation.issue_count }} issues found.</p>
+  <div class="issue-summary">
+    {% for code, count in validation.summary.items() %}
+    <span class="badge badge-state">{{ code|replace('_', ' ') }}: {{ count }}</span>
+    {% endfor %}
+  </div>
+  <p class="small muted">Initial findings from rule checks. One order can have several issues.
+    Suggestions are calculated from your values; customer IDs are never guessed.</p>
+  <a href="/tasks/{{ task.id }}/source">Download original Excel</a>
+</section>
+{% else %}
+<p class="notice">Demonstration task: these records and suggestions were seeded for the prototype.</p>
+{% endif %}
 <div class="stats stats-wide">
   <div><span class="n">{{ task.batch_size }}</span><span class="l">input</span></div>
   <div><span class="n">{{ task.passed }}</span><span class="l">passed</span></div>
@@ -60,18 +94,20 @@
     <thead>
       <tr>
         <th>Record</th><th>Issue</th><th>Field(s)</th><th>Original</th>
-        <th>Suggestion</th><th>Match</th><th>Status</th><th>Action</th>
+        <th>Suggestion</th><th>{{ 'Basis' if validation else 'Match' }}</th><th>Status</th><th>Action</th>
       </tr>
     </thead>
     <tbody>
       {% for item in exceptions %}
       <tr>
-        <td class="mono">{{ item.record_id }}</td>
-        <td>{{ item.issue }}</td>
+        <td class="mono">{% if item.excel_row %}Excel row {{ item.excel_row }}<br>
+          {{ item.order_id or '(missing order ID)' }}{% else %}{{ item.record_id }}{% endif %}</td>
+        <td>{{ item.issue|replace('_', ' ') }}
+          {% if item.reason %}<p class="small muted issue-reason">{{ item.reason }}</p>{% endif %}</td>
         <td class="mono small">{{ item.flagged_fields }}</td>
         <td class="muted">{{ item.original_value }}</td>
         <td>{{ item.suggestion or "(none)" }}</td>
-        <td class="mono">{{ item.confidence_label }}</td>
+        <td class="small">{{ ('Quantity × unit price' if item.suggestion else 'Manual correction needed') if validation else item.confidence_label }}</td>
         <td><span class="badge badge-{{ item.status }}">{{ item.status_label }}</span></td>
         <td class="actions">
           {% if item.status == 'unresolved' %}
@@ -81,9 +117,20 @@
             <button class="btn-mini" name="action" value="accept"
                     {% if not item.suggestion %}disabled title="No suggestion to accept"{% endif %}>Accept</button>
             <button class="btn-mini btn-mini-skip" name="action" value="skip">Skip</button>
+            {% if item.edit_values %}
+            <details class="order-editor">
+              <summary>Edit order</summary>
+              {% for field, value in item.edit_values.items() %}
+              <label>{{ field }}<input class="mini-input" name="field_{{ field }}" value="{{ value }}"
+                aria-label="{{ field }} for Excel row {{ item.excel_row }}"></label>
+              {% endfor %}
+              <button class="btn-mini" name="action" value="edit">Save &amp; recheck</button>
+            </details>
+            {% else %}
             <input class="mini-input" type="text" name="value" placeholder="value" size="6"
                    aria-label="New value for {{ item.record_id }}">
             <button class="btn-mini" name="action" value="edit">Save</button>
+            {% endif %}
           </form>
           {% else %}
           <span class="muted small">{{ item.resolved_value or "-" }}
@@ -95,9 +142,15 @@
     </tbody>
   </table>
 </div>
+{% if total_pages > 1 %}
+<p class="pagination">{% if page > 1 %}<a href="?page={{ page - 1 }}">Previous</a> · {% endif %}
+  Page {{ page }} of {{ total_pages }} (100 exceptions per page)
+  {% if page < total_pages %} · <a href="?page={{ page + 1 }}">Next</a>{% endif %}</p>
+{% endif %}
 {% else %}
 <p class="muted">No exceptions in this batch.</p>
 {% endif %}
-<p class="note">Accept keeps the AI value, Edit saves your own value, Skip removes the record from
-  the run. Every action is written to Decisions. The approval page itself arrives in P4.</p>
+<p class="note">Accept applies the suggested value. Edit saves your correction{% if validation %} only after all checks pass{% endif %}.
+  Skip excludes the order from the run. Original files and original findings remain available.</p>
+{% endif %}
 {% endblock %}

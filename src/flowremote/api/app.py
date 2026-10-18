@@ -19,6 +19,7 @@ from flowremote.api.routes import session as session_routes
 from flowremote.api.routes import approval as approval_routes
 from flowremote.api.routes import review as review_routes
 from flowremote.api.routes import tasks as task_routes
+from flowremote.api.routes import uploads as upload_routes
 from flowremote.api.sessions import SessionSigner, load_or_create_secret
 from flowremote.control_plane.db import PROJECT_ROOT, Database
 from flowremote.control_plane.db import database_url as resolve_database_url
@@ -28,7 +29,8 @@ UI_ROOT = PACKAGE_ROOT / "ui"
 SECRET_PATH = PROJECT_ROOT / "data" / "runtime" / "session.key"
 
 
-def create_app(database_url: str | None = None, session_secret: str | None = None) -> FastAPI:
+def create_app(database_url: str | None = None, session_secret: str | None = None,
+               upload_dir: Path | None = None) -> FastAPI:
     url = resolve_database_url(database_url)
     secret = session_secret or os.environ.get("SESSION_SECRET") or load_or_create_secret(SECRET_PATH)
 
@@ -41,10 +43,13 @@ def create_app(database_url: str | None = None, session_secret: str | None = Non
 
     app = FastAPI(title="FlowRemote", version="0.2.0", lifespan=lifespan)
     app.state.database_url = url
+    app.state.upload_dir = Path(upload_dir or os.environ.get("FLOWREMOTE_UPLOAD_DIR")
+                               or PROJECT_ROOT / "data" / "runtime" / "uploads")
     app.state.signer = SessionSigner(secret)
     app.state.templates = Jinja2Templates(directory=str(UI_ROOT / "templates"))
     app.mount("/static", StaticFiles(directory=str(UI_ROOT / "static")), name="static")
     app.include_router(session_routes.router)
+    app.include_router(upload_routes.router)
     app.include_router(task_routes.router)
     app.include_router(review_routes.router)
     app.include_router(approval_routes.router)

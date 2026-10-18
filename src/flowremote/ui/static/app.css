@@ -205,3 +205,28 @@ a:hover { text-decoration: underline; }
   .stats { gap: 16px; }
   .table { font-size: 12px; }
 }
+/* Workbook creation uses the same controls and palette as the task pages. */
+.page-head-actions { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.page-head-actions > .btn-gate { background: var(--accent); color: white; border-color: var(--accent); white-space: nowrap; }
+.upload-card { max-width: 680px; padding: 28px; border: 1px solid #2b3648; border-radius: 16px; background: #141c29; }
+.upload-card label { display: block; margin: 0 0 10px; font-weight: 600; }
+.upload-card input { display: block; box-sizing: border-box; width: 100%; padding: 13px; margin-bottom: 24px; border: 1px solid #42516a; border-radius: 8px; background: #0c1320; color: #eef2ff; font: inherit; }
+.upload-card input:focus { outline: 2px solid #75c7ad; outline-offset: 2px; }
+.upload-card input[type=file] { margin-bottom: 10px; }
+.upload-card input::file-selector-button { padding: 8px 12px; margin-right: 12px; border: 0; border-radius: 5px; background: #d7e9e3; color: #142a24; cursor: pointer; }
+.upload-summary { margin: 26px 0; padding: 16px; background: #1a2930; border-radius: 10px; }
+.upload-actions { display: flex; align-items: center; gap: 24px; }
+.upload-actions .btn-primary { width: auto; min-width: 150px; }
+.upload-actions .back { margin: 0; }
+.upload-card .btn-gate { display: inline-block; margin-top: 12px; border-color: var(--accent-2); color: var(--accent-2); }
+@media (max-width: 600px) {
+  .page-head-actions { align-items: flex-start; flex-direction: column; }
+  .upload-card { padding: 20px; }
+}
+.issue-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.issue-reason { white-space: pre-line; min-width: 210px; }
+.order-editor { min-width: 230px; margin-top: 8px; }
+.order-editor summary { color: var(--accent-2); cursor: pointer; }
+.order-editor label { display: block; margin-top: 8px; font-size: 12px; }
+.order-editor .mini-input { display: block; width: 100%; margin: 4px 0 8px; }
+.validation-panel { margin-bottom: 20px; }

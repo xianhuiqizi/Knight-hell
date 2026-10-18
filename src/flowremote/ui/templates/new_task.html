@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}New task - FlowRemote{% endblock %}
+{% block content %}
+<a class="back" href="/">&larr; All tasks</a>
+<div class="page-head">
+  <p class="eyebrow">START A BATCH</p>
+  <h1>New task</h1>
+  <p class="sub">Name your task and upload the Excel workbook you want to process.</p>
+</div>
+<form class="upload-card" method="post" action="/tasks" enctype="multipart/form-data">
+  {% if error %}<p class="alert" role="alert">{{ error }} Please select your file again.</p>{% endif %}
+  <label for="task-name">Task name</label>
+  <input id="task-name" name="name" type="text" maxlength="120" required
+         placeholder="e.g. October order review" value="{{ name }}" autofocus>
+  <label for="task-file">Excel workbook</label>
+  <input id="task-file" name="file" type="file" accept=".xlsx" required aria-describedby="file-help">
+  <p id="file-help" class="small muted">.xlsx only, up to 10 MB. On the first worksheet, the first
+    non-empty row is treated as column headers (within the first 1,000 rows). Leading blank rows
+    are skipped. Include 1–10,000 rows below the headers, with at most 256 columns.
+    Blank data rows are not counted as records.</p>
+  <p class="small"><a href="/orders-template.xlsx">Download order template</a> · Replace the example row with your orders.</p>
+  <p class="small muted">Required columns: order_id (订单号), customer_name (客户名称),
+    customer_id (客户编号), quantity (数量), unit_price (单价), amount (金额), order_date (订单日期).
+    Common English and Chinese headers are accepted. Paste values instead of formulas.</p>
+  <div class="upload-summary">
+    <strong>Owned by {{ user.name }}</strong>
+    <p class="small muted">Your task and original file will be saved to your account.
+      Uploading checks required values, duplicate order IDs, quantities, prices, totals and dates.
+      Results and exceptions come from your workbook. Nothing is sent to OA or BI.</p>
+  </div>
+  <div class="upload-actions">
+    <button class="btn-primary" type="submit">Create &amp; validate</button>
+    <a class="back" href="/">Cancel</a>
+  </div>
+</form>
+{% endblock %}
