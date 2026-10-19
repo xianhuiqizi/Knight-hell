@@ -13,14 +13,21 @@
   <input id="task-name" name="name" type="text" maxlength="120" required
          placeholder="e.g. October order review" value="{{ name }}" autofocus>
   <label for="task-file">Excel workbook</label>
-  <input id="task-file" name="file" type="file" accept=".xlsx" required aria-describedby="file-help">
+  <div class="file-picker">
+    <input id="task-file" name="file" type="file" accept=".xlsx" required
+           aria-describedby="file-help file-name">
+    <div class="file-picker-display" aria-hidden="true">
+      <span class="file-picker-button">Choose file</span>
+      <span id="file-name">No file selected</span>
+    </div>
+  </div>
   <p id="file-help" class="small muted">.xlsx only, up to 10 MB. On the first worksheet, the first
     non-empty row is treated as column headers (within the first 1,000 rows). Leading blank rows
     are skipped. Include 1–10,000 rows below the headers, with at most 256 columns.
     Blank data rows are not counted as records.</p>
   <p class="small"><a href="/orders-template.xlsx">Download order template</a> · Replace the example row with your orders.</p>
-  <p class="small muted">Required columns: order_id (订单号), customer_name (客户名称),
-    customer_id (客户编号), quantity (数量), unit_price (单价), amount (金额), order_date (订单日期).
+  <p class="small muted">Required columns: order_id (Order ID), customer_name (Customer name),
+    customer_id (Customer ID), quantity (Quantity), unit_price (Unit price), amount (Amount), order_date (Order date).
     Common English and Chinese headers are accepted. Paste values instead of formulas.</p>
   <div class="upload-summary">
     <strong>Owned by {{ user.name }}</strong>
