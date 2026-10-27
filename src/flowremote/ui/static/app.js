@@ -83,3 +83,28 @@ if (progressBox) {
 
   window.setTimeout(step, 400);
 }
+
+// Review page: every decision reloads the page, so remember where the reviewer
+// was. The server redirects with #exc-<record>, which the browser honours first;
+// the saved offset is only the fallback for rows without an anchor.
+const REVIEW_SCROLL_KEY = "flowremote.reviewScroll";
+if (document.querySelector(".action-form")) {
+  document.addEventListener("submit", (event) => {
+    if (event.target instanceof HTMLFormElement && event.target.matches(".action-form")) {
+      sessionStorage.setItem(REVIEW_SCROLL_KEY, String(window.scrollY));
+    }
+  }, true);
+
+  if (window.location.hash.startsWith("#exc-")) {
+    sessionStorage.removeItem(REVIEW_SCROLL_KEY);
+  } else {
+    const saved = sessionStorage.getItem(REVIEW_SCROLL_KEY);
+    if (saved !== null) {
+      sessionStorage.removeItem(REVIEW_SCROLL_KEY);
+      const offset = Number(saved);
+      if (Number.isFinite(offset) && offset > 0) {
+        requestAnimationFrame(() => window.scrollTo(0, offset));
+      }
+    }
+  }
+}

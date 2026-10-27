@@ -108,7 +108,7 @@
     </thead>
     <tbody>
       {% for item in exceptions %}
-      <tr>
+      <tr id="exc-{{ item.record_id }}">
         <td class="mono">{% if item.excel_row %}Excel row {{ item.excel_row }}<br>
           {{ item.order_id or '(missing order ID)' }}{% else %}{{ item.record_id }}{% endif %}</td>
         <td>{{ item.issue|replace('_', ' ') }}

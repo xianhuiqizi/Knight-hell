@@ -135,6 +135,16 @@ class DecisionTests(unittest.TestCase):
         self.assertIn('value="skip"', page.text)
         self.assertIn('value="edit"', page.text)
 
+    def test_a_decision_returns_to_the_same_row(self):
+        """The reviewer must not be thrown back to the top of the page."""
+        self.login()
+        response = self.decide("ORD-052", "accept", decision_id="K-5")
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.headers["location"].endswith("#exc-ORD-052"),
+                        response.headers["location"])
+        page = self.client.get("/tasks/TASK-A")
+        self.assertIn('id="exc-ORD-052"', page.text)
+
     # -- guards ----------------------------------------------------------
     def test_accept_without_a_suggestion_is_refused(self):
         self.login()

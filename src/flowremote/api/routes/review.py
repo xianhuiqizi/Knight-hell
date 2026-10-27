@@ -59,7 +59,7 @@ async def record_decision(
             if decision_id and db.query(
                 "SELECT id FROM decisions WHERE decision_id = ?", (decision_id,)
             ):
-                return RedirectResponse(f"/tasks/{task_id}", status_code=303)
+                return RedirectResponse(f"/tasks/{task_id}#exc-{record_id}", status_code=303)
             if db.scalar("SELECT status FROM tasks WHERE id = ?", (task_id,)) != "review_required":
                 raise DecisionRejected("This task has already moved past review.")
             exception = ExceptionItem.from_row(
@@ -128,4 +128,5 @@ async def record_decision(
         context = load_task_page(db, user, task_id) or context
         context["error"] = str(exc)
         return render(request, "task.html", context, status_code=400)
-    return RedirectResponse(f"/tasks/{task_id}", status_code=303)
+    # Jump back to the row just decided, so the reviewer does not lose their place.
+    return RedirectResponse(f"/tasks/{task_id}#exc-{record_id}", status_code=303)

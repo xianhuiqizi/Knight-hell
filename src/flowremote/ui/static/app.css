@@ -277,3 +277,6 @@ a:hover { text-decoration: underline; }
   .log-time { grid-column: 1 / -1; }
   .gate-actions { flex-wrap: wrap; }
 }
+
+/* A decision returns to #exc-<record>; keep the row clear of the sticky top bar. */
+.table tr[id^="exc-"] { scroll-margin-top: 96px; }
