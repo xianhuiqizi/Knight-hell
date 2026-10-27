@@ -53,11 +53,20 @@
 {% if approval %}
 <div class="gate gate-open">
   <div>
-    <strong>Approved</strong>
+    <strong>{% if run and run.status == 'partial' %}Execution stopped early{% else %}Approved{% endif %}</strong>
     <span class="small muted">{{ approval.approved_count }} records approved by
-      {{ approval.approver_name }} · {{ approval.approved_at }}</span>
+      {{ approval.approver_name }} · {{ approval.approved_at }}
+      {%- if run and run.status == 'complete' %} · {{ run.written_count }} written{% endif %}
+      {%- if run and run.status == 'partial' %} · {{ run.written_count }} of {{ run.approved_count }} written{% endif %}</span>
   </div>
-  <span class="badge badge-state">{{ task.status_label }}</span>
+  <div class="gate-actions">
+    {% if run and run.status == 'executing' %}
+    <a class="btn-gate" href="/tasks/{{ task.id }}/execution">View execution</a>
+    {% elif run %}
+    <a class="btn-gate" href="/tasks/{{ task.id }}/results">View results</a>
+    {% endif %}
+    <span class="badge badge-state">{{ task.status_label }}</span>
+  </div>
 </div>
 {% elif task.status == 'pending_approval' %}
 <div class="gate gate-open">

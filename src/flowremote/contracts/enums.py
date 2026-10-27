@@ -44,6 +44,27 @@ class Role(StrEnum):
     ADMIN = "admin"
 
 
+class RunState(StrEnum):
+    """How one execution attempt is going.
+
+    A run stops being ``EXECUTING`` exactly once: either ``COMPLETE`` when every
+    approved record was written and synced, or ``PARTIAL`` when a write failed
+    and the run stopped where it was. The task keeps its own status; a partial
+    run is visible on the run, not hidden behind a task-state rename.
+    """
+
+    EXECUTING = "executing"
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+
+
+class ActorKind(StrEnum):
+    """Who or what produced an activity event."""
+
+    USER = "user"
+    ENGINE = "engine"
+
+
 class Outcome(StrEnum):
     """How one source record came out of validation."""
 

@@ -144,6 +144,12 @@ def load_task_page(db: Database, user: User, task_id: str, page: int = 1) -> dic
         " WHERE a.task_id = ? ORDER BY a.attempt DESC LIMIT 1",
         (task_id,),
     )
+    runs = db.query(
+        "SELECT id, attempt, approved_count, written_count, synced_count, status,"
+        " started_at, finished_at, duration_ms FROM execution_runs"
+        " WHERE task_id = ? ORDER BY attempt DESC LIMIT 1",
+        (task_id,),
+    )
     return {
         "user": user,
         "task": task,
@@ -159,6 +165,7 @@ def load_task_page(db: Database, user: User, task_id: str, page: int = 1) -> dic
             None,
         ),
         "approval": approvals[0] if approvals else None,
+        "run": runs[0] if runs else None,
         "error": None,
         "validation": validation,
         "page": page,

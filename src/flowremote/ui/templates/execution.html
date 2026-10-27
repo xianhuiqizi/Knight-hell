@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Execution - {{ task.id }}{% endblock %}
+{% block content %}
+<a class="back" href="/tasks/{{ task.id }}">&larr; {{ task.id }}</a>
+<div class="page-head">
+  <p class="eyebrow">{{ task.id }} · {{ task.status_label }}</p>
+  <h1>Execution</h1>
+  <p class="sub">{{ task.workflow }} · {{ run.approved_count }} approved records</p>
+</div>
+
+<div class="stats stats-wide">
+  <div><span class="n">{{ run.approved_count }}</span><span class="l">approved</span></div>
+  <div><span class="n" id="written-count">{{ run.written_count }}</span><span class="l">written</span></div>
+  <div><span class="n" id="synced-count">{{ run.synced_count }}</span><span class="l">synced</span></div>
+  <div><span class="n">{{ task.skipped }}</span><span class="l">skipped</span></div>
+</div>
+
+<div class="progress" id="execution-progress" data-task="{{ task.id }}"
+     data-results="/tasks/{{ task.id }}/results">
+  <div class="progress-track"><div class="progress-bar" id="progress-bar"
+       style="width: {{ progress }}%"></div></div>
+  <p class="progress-label" id="progress-label">{{ run.written_count }} of
+    {{ run.approved_count }} records written · {{ progress }}%</p>
+</div>
+
+<div class="panel">
+  <h2>Target endpoints (simulated)</h2>
+  <ul class="targets">
+    <li>
+      <strong>{{ task.primary_target }}</strong>
+      <span class="badge">Primary target</span>
+      <span class="muted small">Write {{ run.approved_count }} approved records</span>
+    </li>
+    <li>
+      <strong>{{ task.secondary_target }}</strong>
+      <span class="badge">Secondary sync</span>
+      <span class="muted small">Sync the same {{ run.approved_count }} records, never a second copy</span>
+    </li>
+  </ul>
+</div>
+
+<form method="post" action="/tasks/{{ task.id }}/execution/step" class="approval-actions">
+  <button class="btn-primary" type="submit">Run next {{ step_size }} records</button>
+</form>
+
+<p class="small muted">Started {{ run.started_at }} · step size {{ step_size }} records.
+  {% if user.role == 'admin' %}Administrators can watch but the run belongs to the owner.{% endif %}</p>
+<p class="note">Simulated execution: nothing is written to a real OA or BI system. The counts on
+  this page are real database state, the outward writes are not. With JavaScript switched off,
+  use the button above to advance one step at a time.</p>
+{% endblock %}

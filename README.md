@@ -1,8 +1,9 @@
 # FlowRemote
 
-Mobile supervision and approval for AI-assisted data processing. Week 5 builds
-the first working slices: the database and rules, then real sign-in and
-per-user visibility.
+Mobile supervision and approval for AI-assisted data processing. Week 6 adds the
+second feature: an approved batch now executes in visible steps, ends on a
+results page, and leaves an activity log. Execution is simulated — nothing is
+written to a real OA or BI system.
 
 ## What works today
 
@@ -10,14 +11,18 @@ per-user visibility.
   and its rules live here once.
 - `src/flowremote/control_plane/` - the database (migrations, one
   `DATABASE_URL` for SQLite and PostgreSQL), the review rules (tally, approval
-  gate), and password/account handling.
+  gate), password/account handling, and the append-only activity log.
 - `src/flowremote/api/` - FastAPI app: sign-up, sign-in, sign-out, signed
-  session cookies, task list and task detail filtered by role, and the
-  Accept / Edit / Skip endpoint, the approval page and the approval write.
+  session cookies, task list and task detail filtered by role, the
+  Accept / Edit / Skip endpoint, the approval page and the approval write, and
+  the execution progress, results and activity-export routes.
+- `src/flowremote/rpa/` - the step rules for one execution run (pure functions).
+- `src/flowremote/connectors/` - simulated OA / BI targets; no network calls.
 - `src/flowremote/ui/` - Jinja templates and one dark stylesheet.
 - `src/flowremote/devtools/` - the demonstration data generator.
-- `tests/` - model rules, review rules, database constraints, passwords, sessions,
-  authentication, isolation, decisions, approval and workbook uploads.
+- `tests/` - model rules, review rules, database constraints, passwords,
+  sessions, authentication, isolation, decisions, approval, execution and
+  workbook uploads.
 
 ## Run it
 
@@ -105,8 +110,31 @@ reaches zero.
 When the counter reaches zero the banner offers **Proceed**. The approval page
 shows input / skipped / ready / unresolved, the source file and the two targets,
 then **Approve & Execute** (or **Back to review**). Approving writes exactly one
-row to Approvals, moves the task to `executing`, and cannot be repeated.
-Execution progress and results are P5.
+row to Approvals, one row to `execution_runs` for that attempt, moves the task
+to `executing`, and cannot be repeated.
+
+## Watching an approved batch execute
+
+`/tasks/{id}/execution` advances the run in steps of 20 records. In the browser
+the page does it on its own (one request every 400 ms); without JavaScript the
+**Run next 20 records** button moves one step at a time. Each step writes and
+syncs the same records, so `written_count` and `synced_count` never diverge
+(BR-5).
+
+The run finishes as `complete` and the task moves to `complete`; the results page
+shows success as written over input (99/100), the measured duration (the clock
+starts at the first step, not at the approval) and the success rate, then the
+activity log. `/tasks/{id}/activity.json` exports the same events for an audit
+trail.
+
+To demonstrate a failed write, set the demonstration switch before starting the
+server: `FLOWREMOTE_EXECUTION_FAIL_AT=25`. The run stops after 24 records,
+`execution_runs.status` becomes `partial`, an `execution_failed` event is
+logged, and the task deliberately stays `executing` — the task table has no
+`partial` state, and the run is the honest place to record where it stopped.
+
+Every target is simulated: `connectors/demo.py` opens no socket, and both the
+progress page and the results page say so.
 
 ## Demo accounts
 
@@ -133,19 +161,20 @@ The seed creates:
 ```
 src/flowremote/
   contracts/      enums, domain models, time format
-  control_plane/  database, migrations, review rules, accounts
+  control_plane/  database, migrations, review rules, accounts, activity log
   api/            FastAPI app, sessions, routes
   ui/             templates and static assets
   agent/          the AI step (not built yet)
-  rpa/            validation and execution engines (not built yet)
-  connectors/     OA / BI adapters (not built yet)
+  rpa/            execution step rules (simulated runner)
+  connectors/     simulated OA / BI targets
   devtools/       seed data and local helpers
 ```
 
 ## Not built yet
 
-The AI suggestion service, the execution layer (progress, results, retries) and
-the OA/BI connectors.
+The AI suggestion service, retry after a partial write, and the real OA/BI
+connectors. Execution itself is simulated: the counts are real database state,
+the outward writes are not.
 
 ## Notes
 
@@ -153,4 +182,5 @@ the OA/BI connectors.
 - `docs/p2-report.md` records what P2 changed and how it was verified.
 - `docs/p3-report.md` records what P3 changed and how it was verified.
 - `docs/p4-report.md` records what P4 changed and how it was verified.
+- `docs/p5-report.md` records what the Week 6 feature changed and how it was verified.
 - `prompts/prompt-log.md` is the AI-use log required by the course.

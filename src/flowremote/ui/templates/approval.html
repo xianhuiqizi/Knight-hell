@@ -56,5 +56,7 @@
   </form>
 </div>
 {% endif %}
-<p class="note">Execution itself — progress per target and results — arrives in P5.</p>
+<p class="note">{% if approval %}Execution has been released.
+  <a href="/tasks/{{ task.id }}/results">Open the results</a> to see what was written and the activity log.
+  {% else %}Execution starts only after this approval; every target is simulated.{% endif %}</p>
 {% endblock %}

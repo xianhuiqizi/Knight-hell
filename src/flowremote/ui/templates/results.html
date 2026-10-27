@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Results - {{ task.id }}{% endblock %}
+{% block content %}
+<a class="back" href="/tasks/{{ task.id }}">&larr; {{ task.id }}</a>
+<div class="page-head">
+  <p class="eyebrow">{{ task.id }} · {{ task.status_label }}</p>
+  <h1>{{ 'Execution stopped early' if partial else 'Execution complete' }}</h1>
+  <p class="sub">{{ task.workflow }}</p>
+</div>
+
+<div class="result-banner {{ 'result-bad' if partial else 'result-ok' }}">
+  {% if partial %}
+  <strong>&#9888;</strong>
+  <span>The simulated write stopped after {{ run.written_count }} of {{ run.approved_count }}
+    approved records. {{ run.approved_count - run.written_count }} record(s) were not written.
+    The activity log shows when it stopped.</span>
+  {% else %}
+  <strong>&#10003;</strong>
+  <span>{{ run.written_count }} records written to {{ task.primary_target }} and synced to
+    {{ task.secondary_target }}. {{ approval.skipped_count if approval else 0 }} record(s)
+    skipped.</span>
+  {% endif %}
+</div>
+
+<div class="stats stats-wide">
+  <div><span class="n">{{ success }}</span><span class="l">success</span></div>
+  <div><span class="n">{{ duration }}</span><span class="l">duration</span></div>
+  <div><span class="n">{{ success_rate }}</span><span class="l">success rate</span></div>
+  <div><span class="n">{{ run.synced_count }}</span><span class="l">synced</span></div>
+</div>
+
+<h2 class="section">Activity log</h2>
+{% if events %}
+<ul class="log">
+  {% for event in events %}
+  <li class="log-item">
+    <span class="log-time">{{ event.occurred_at }}</span>
+    <span class="badge badge-{{ 'engine' if event.actor_kind == 'engine' else 'operator' }}">{{ event.actor_kind }}</span>
+    <span class="log-text">{{ event.description }}</span>
+    <span class="log-actor">{{ event.actor }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No events recorded for this task.</p>
+{% endif %}
+
+<div class="approval-actions">
+  <a class="btn-gate" href="/">Back to Home</a>
+  <a class="btn-gate" href="/tasks/{{ task.id }}/activity.json">Export activity (JSON)</a>
+  <a class="btn-gate" href="/tasks/{{ task.id }}">Open task</a>
+</div>
+
+<p class="note">Approved by {{ approval.approver_name if approval else 'unknown' }}
+  {%- if approval %} at {{ approval.approved_at }}{% endif %}. Simulated execution: the counts are
+  real database state, nothing was sent to a real OA or BI system.</p>
+{% endblock %}

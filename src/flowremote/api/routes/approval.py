@@ -19,9 +19,18 @@ from flowremote.api.deps import current_user, get_db
 from flowremote.api.rendering import render
 from flowremote.api.routes.tasks import load_task_page
 from flowremote.contracts.models import User
+from flowremote.control_plane.activity import log_event
 from flowremote.control_plane.db import Database, utc_now
 
 router = APIRouter()
+
+
+def _review_counts(db: Database, task_id: str) -> dict[str, int]:
+    rows = db.query(
+        "SELECT status, COUNT(*) AS n FROM exceptions WHERE task_id = ? GROUP BY status",
+        (task_id,),
+    )
+    return {row["status"]: int(row["n"]) for row in rows}
 
 
 def _forbidden(
@@ -70,10 +79,25 @@ def proceed(
             f"{context['unresolved']} exception(s) are still unresolved; "
             "approval unlocks only at zero.",
         )
-    db.execute(
-        "UPDATE tasks SET status = 'pending_approval', updated_at = ? WHERE id = ?",
-        (utc_now(), task_id),
-    )
+    counts = _review_counts(db, task_id)
+    now = utc_now()
+    with db.transaction():
+        db.execute(
+            "UPDATE tasks SET status = 'pending_approval', updated_at = ? WHERE id = ?",
+            (now, task_id),
+        )
+        log_event(
+            db,
+            task_id=task_id,
+            kind="review_completed",
+            actor=user.name,
+            occurred_at=now,
+            description=(
+                f"Review completed: {counts.get('accepted', 0)} accepted,"
+                f" {counts.get('manual', 0)} manual, {counts.get('skipped', 0)} skipped"
+            ),
+            payload=counts,
+        )
     return RedirectResponse(f"/tasks/{task_id}/approval", status_code=303)
 
 
@@ -103,6 +127,7 @@ def approve(
         return _forbidden(request, context, "There is nothing approved to write.")
 
     now = utc_now()
+    run_id = f"RUN-{task_id}-1"
     with db.transaction():
         db.execute(
             "INSERT INTO approvals (id, task_id, attempt, approver_id, approved_count,"
@@ -112,6 +137,25 @@ def approve(
         db.execute(
             "UPDATE tasks SET status = 'executing', updated_at = ? WHERE id = ?",
             (now, task_id),
+        )
+        # The run belongs to this attempt: UNIQUE (task_id, attempt) plus the
+        # approval guard above means one approval can only ever start one run.
+        db.execute(
+            "INSERT INTO execution_runs (id, task_id, attempt, approved_count, written_count,"
+            " synced_count, status, started_at) VALUES (?, ?, 1, ?, 0, 0, 'executing', ?)",
+            (run_id, task_id, ready, now),
+        )
+        log_event(
+            db,
+            task_id=task_id,
+            run_id=run_id,
+            kind="execution_approved",
+            actor=user.name,
+            occurred_at=now,
+            description=(
+                f"Approved {ready} records for simulated execution ({skipped} skipped)"
+            ),
+            payload={"approved": ready, "skipped": skipped},
         )
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
 
@@ -132,8 +176,18 @@ def back_to_review(
         return _forbidden(request, context, "This batch is already approved.")
     if context["task"]["status"] != "pending_approval":
         return _forbidden(request, context, "This batch is not waiting for approval.")
-    db.execute(
-        "UPDATE tasks SET status = 'review_required', updated_at = ? WHERE id = ?",
-        (utc_now(), task_id),
-    )
+    now = utc_now()
+    with db.transaction():
+        db.execute(
+            "UPDATE tasks SET status = 'review_required', updated_at = ? WHERE id = ?",
+            (now, task_id),
+        )
+        log_event(
+            db,
+            task_id=task_id,
+            kind="review_reopened",
+            actor=user.name,
+            occurred_at=now,
+            description="Review reopened from the approval stage",
+        )
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)

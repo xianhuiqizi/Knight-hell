@@ -124,6 +124,22 @@ stateDiagram-v2
 
 Dashed back edges in the storyboard are T11 (Back to Review) and T18 (Back to Home). Both are real controls in the mockup.
 
+### 4.4 Implementation status after Week 6
+
+| Transition | Status | Where |
+| --- | --- | --- |
+| T4, T5 | Implemented, but **T5 is not**: validation always lands on ReviewRequired, even with zero exceptions (PRD FR-4.5 open) | `control_plane/order_validation.py` |
+| T7 | Implemented; every decision also appends an `exception_decided` event | `api/routes/review.py` |
+| T9, T10 | Implemented; T9 logs `review_completed` in the same transaction | `api/routes/approval.py` |
+| T11 | Implemented; logs `review_reopened` | `api/routes/approval.py` |
+| T12, T13 | Implemented; T12 also creates the `execution_runs` row, T13 is the idempotent redirect | `api/routes/approval.py` |
+| T14 | Implemented as `/tasks/{id}/execution/step`, 20 records per step | `api/routes/execution.py` |
+| T15 | Implemented; sets `tasks.status = complete`, records duration, logs `execution_completed` | `api/routes/execution.py` |
+| T16 | Implemented as `execution_runs.status = partial`; the **task stays Executing** because `tasks.status` has no partial value | `api/routes/execution.py` |
+| T17 | **Not implemented**; a partial run cannot be retried yet | - |
+| T18 | Implemented as the Back to Home link on the results page | `ui/templates/results.html` |
+| T19 | Not implemented (Cancel has never been in scope) | - |
+
 ### 4.4 Field notes per state
 
 **Validating**

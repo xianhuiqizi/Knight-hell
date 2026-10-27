@@ -21,10 +21,12 @@ from dataclasses import dataclass, field, fields
 from typing import Any, Mapping
 
 from flowremote.contracts.enums import (
+    ActorKind,
     DecisionAction,
     ExceptionStatus,
     Outcome,
     Role,
+    RunState,
     TaskState,
 )
 from flowremote.contracts.timeutil import utc_now
@@ -256,4 +258,101 @@ class Approval:
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any] | Any) -> "Approval":
+        return cls(**_pick(cls, _row_mapping(row)))
+
+
+@dataclass(frozen=True)
+class ExecutionRun:
+    """One attempt at writing an approved batch to its targets.
+
+    The counters only move forward, and the invariants here are the ones the
+    database repeats as CHECK constraints: you cannot write more than was
+    approved, and the secondary target never runs ahead of the primary write
+    (BR-3, BR-5). A finished run must say when it finished, so a row can never
+    claim ``complete`` without a time.
+    """
+
+    id: str
+    task_id: str
+    attempt: int
+    approved_count: int
+    written_count: int
+    synced_count: int
+    status: RunState
+    started_at: str
+    finished_at: str | None = None
+    duration_ms: int | None = None
+
+    def __post_init__(self) -> None:
+        _require_text(self.id, "ExecutionRun.id")
+        _require_text(self.task_id, "ExecutionRun.task_id")
+        _require_text(self.started_at, "ExecutionRun.started_at")
+        for name in ("attempt", "approved_count", "written_count", "synced_count"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise ModelError(f"ExecutionRun.{name} must be an integer, got {value!r}")
+        if self.attempt <= 0:
+            raise ModelError("ExecutionRun.attempt must be a positive integer")
+        if self.approved_count <= 0:
+            raise ModelError("ExecutionRun.approved_count must be greater than zero")
+        if self.written_count < 0 or self.synced_count < 0:
+            raise ModelError("ExecutionRun counts cannot be negative")
+        if self.written_count > self.approved_count:
+            raise ModelError("a run cannot write more records than were approved")
+        if self.synced_count > self.written_count:
+            raise ModelError("the secondary target cannot run ahead of the primary write")
+        status = _coerce(RunState, self.status, "ExecutionRun.status")
+        object.__setattr__(self, "status", status)
+        if status is RunState.EXECUTING and self.finished_at is not None:
+            raise ModelError("a running execution cannot carry a finish time")
+        if status is not RunState.EXECUTING and not self.finished_at:
+            raise ModelError("a finished execution must record when it finished")
+        if self.duration_ms is not None and self.duration_ms < 0:
+            raise ModelError("ExecutionRun.duration_ms cannot be negative")
+
+    @property
+    def progress_percent(self) -> int:
+        return round(100 * self.written_count / self.approved_count)
+
+    @property
+    def finished(self) -> bool:
+        return self.status is not RunState.EXECUTING
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any] | Any) -> "ExecutionRun":
+        return cls(**_pick(cls, _row_mapping(row)))
+
+
+@dataclass(frozen=True)
+class ActivityEvent:
+    """One append-only line of the audit log (BR-10).
+
+    ``actor_kind`` keeps the log honest: the engine writes its own events, and a
+    reader can tell a simulated execution from a person's decision.
+    """
+
+    id: str
+    task_id: str
+    occurred_at: str
+    actor: str
+    actor_kind: ActorKind
+    kind: str
+    description: str
+    run_id: str | None = None
+    payload_json: str = "{}"
+
+    def __post_init__(self) -> None:
+        _require_text(self.id, "ActivityEvent.id")
+        _require_text(self.task_id, "ActivityEvent.task_id")
+        _require_text(self.occurred_at, "ActivityEvent.occurred_at")
+        _require_text(self.actor, "ActivityEvent.actor")
+        _require_text(self.kind, "ActivityEvent.kind")
+        _require_text(self.description, "ActivityEvent.description")
+        object.__setattr__(self, "actor_kind", _coerce(ActorKind, self.actor_kind,
+                                                      "ActivityEvent.actor_kind"))
+        if not isinstance(self.payload_json, str) or not self.payload_json.strip():
+            raise ModelError("ActivityEvent.payload_json must be a JSON object string")
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any] | Any) -> "ActivityEvent":
         return cls(**_pick(cls, _row_mapping(row)))

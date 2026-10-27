@@ -17,6 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from flowremote.api.routes import session as session_routes
 from flowremote.api.routes import approval as approval_routes
+from flowremote.api.routes import execution as execution_routes
 from flowremote.api.routes import review as review_routes
 from flowremote.api.routes import tasks as task_routes
 from flowremote.api.routes import uploads as upload_routes
@@ -53,6 +54,7 @@ def create_app(database_url: str | None = None, session_secret: str | None = Non
     app.include_router(task_routes.router)
     app.include_router(review_routes.router)
     app.include_router(approval_routes.router)
+    app.include_router(execution_routes.router)
     return app
 
 

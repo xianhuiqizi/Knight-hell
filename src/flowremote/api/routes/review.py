@@ -19,6 +19,7 @@ from flowremote.api.forms import read_form
 from flowremote.api.rendering import render
 from flowremote.api.routes.tasks import load_task_page
 from flowremote.contracts.models import ExceptionItem, User
+from flowremote.control_plane.activity import log_event
 from flowremote.control_plane.db import Database, new_id, utc_now
 from flowremote.control_plane.order_validation import FIELDS, ValidationError, apply_correction
 from flowremote.control_plane.review import DecisionRejected, decide
@@ -105,6 +106,23 @@ async def record_decision(
                 "UPDATE exceptions SET status = ?, resolved_value = ?, reviewed_by = ?,"
                 " reviewed_at = ? WHERE id = ?",
                 (result.status.value, result.resolved_value, user.id, now, exception.id),
+            )
+            log_event(
+                db,
+                task_id=task_id,
+                kind="exception_decided",
+                actor=user.name,
+                occurred_at=now,
+                description={
+                    "accept": f"Accepted the suggestion for {record_id}",
+                    "edit": f"Corrected {record_id} by hand",
+                    "skip": f"Skipped {record_id}",
+                }[result.action.value],
+                payload={
+                    "record_id": record_id,
+                    "action": result.action.value,
+                    "value": result.resolved_value,
+                },
             )
     except (DecisionRejected, ValidationError) as exc:
         context = load_task_page(db, user, task_id) or context

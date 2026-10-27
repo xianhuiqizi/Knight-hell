@@ -36,3 +36,50 @@ for (const eventName of ["input", "change"]) {
     }
   });
 }
+
+// Execution progress (Feature 2). With JavaScript on, the page advances the run
+// itself and lands on the results page; with it off, the form button still works.
+const progressBox = document.getElementById("execution-progress");
+if (progressBox) {
+  const taskId = progressBox.dataset.task;
+  const resultsUrl = progressBox.dataset.results;
+  const bar = document.getElementById("progress-bar");
+  const label = document.getElementById("progress-label");
+  const writtenCount = document.getElementById("written-count");
+  const syncedCount = document.getElementById("synced-count");
+
+  const show = (data) => {
+    if (bar) bar.style.width = `${data.progress_pct}%`;
+    if (label) {
+      label.textContent = `${data.written} of ${data.approved} records written · ${data.progress_pct}%`;
+    }
+    if (writtenCount) writtenCount.textContent = data.written;
+    if (syncedCount) syncedCount.textContent = data.synced;
+  };
+
+  const step = async () => {
+    let response;
+    try {
+      response = await fetch(`/tasks/${taskId}/execution/step`, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+    } catch (error) {
+      return;
+    }
+    if (!response.ok) return;
+    const data = await response.json();
+    show(data);
+    if (data.status === "complete") {
+      window.location.assign(resultsUrl);
+      return;
+    }
+    if (data.status === "partial") {
+      window.location.reload();
+      return;
+    }
+    window.setTimeout(step, 400);
+  };
+
+  window.setTimeout(step, 400);
+}

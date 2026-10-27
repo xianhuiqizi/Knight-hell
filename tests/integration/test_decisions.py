@@ -16,7 +16,8 @@ from flowremote.control_plane.db import PROJECT_ROOT, Database  # noqa: E402
 
 DB_PATH = PROJECT_ROOT / "data" / "runtime" / "tests" / "review.db"
 DB_URL = f"sqlite:///{DB_PATH.as_posix()}"
-TABLES = ("decisions", "approvals", "exceptions", "source_records", "tasks", "users")
+TABLES = ("activity_events", "execution_runs", "decisions", "approvals", "exceptions",
+          "source_records", "tasks", "users")
 
 EXCEPTIONS = [
     ("ORD-052", "Missing Customer ID", "customer_id", "(blank)", "C-1024", 0.98,

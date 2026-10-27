@@ -6,7 +6,9 @@ from collections import Counter
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from flowremote.control_plane.activity import VALIDATOR_NAME, log_event
 from flowremote.control_plane.db import new_id, utc_now
+from flowremote.contracts.enums import ActorKind
 
 FIELDS = (
     "order_id",
@@ -255,6 +257,25 @@ def save_analysis(db, task_id, header_row, results, summary):
     db.execute(
         "UPDATE tasks SET status = 'review_required', batch_size = ?, updated_at = ? WHERE id = ?",
         (len(results), now, task_id),
+    )
+    flagged = sum(1 for result in results if result["issues"])
+    log_event(
+        db,
+        task_id=task_id,
+        kind="validation_completed",
+        actor=VALIDATOR_NAME,
+        actor_kind=ActorKind.ENGINE,
+        occurred_at=now,
+        description=(
+            f"Validation checked {len(results)} records: {len(results) - flagged} passed,"
+            f" {flagged} flagged"
+        ),
+        payload={
+            "checked": len(results),
+            "passed": len(results) - flagged,
+            "flagged": flagged,
+            "rule_version": RULE_VERSION,
+        },
     )
 
 

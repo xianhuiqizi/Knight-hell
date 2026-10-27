@@ -1,4 +1,4 @@
-# FlowRemote 项目工作总览（Week 5）
+# FlowRemote 项目工作总览（Week 5–6）
 
 ## 1. 项目是什么，现在到哪一步
 
@@ -190,11 +190,26 @@ python -m unittest discover -s tests
 3. **P4 审批闸门**：审批页 + `UNIQUE(task_id, attempt)` 的实际写入。
 4. **P5 执行与结果**：假 OA/BI 连接器 + 结果页 100/99/1/0。
 
-提交命令（我这边的沙箱不能写 `.git`，需要你在终端执行）：
+提交命令（在你自己终端执行）：
 
 ```powershell
-cd 'E:\knight hell'
+cd 'C:\Users\Ian10\Desktop\ENT207\Knight-hell'
 git add -A
-git commit -m "P1: domain models, review rules and 38 tests"
+git commit -m "feat: execution progress, results and activity log (Week 6 feature 2)"
 git push
 ```
+
+## 12. Week 6 更新（Feature 2：执行、结果与活动日志）
+
+P2–P5 已全部落地。Week 6 补的是"审批之后"这一段，详细验收记录见 [p5-report.md](p5-report.md)。
+
+| 项目 | 内容 |
+| --- | --- |
+| 迁移 | `0004_execution.sql`：`execution_runs`（一次审批一个 run，`UNIQUE(task_id, attempt)`）、`activity_events`（只增不改） |
+| 规则 | `rpa/execution.py`：步长 20、完成边界、失败停止点；纯函数，不碰数据库 |
+| 连接器 | `connectors/demo.py`：`SimulatedTarget`，不发任何网络请求 |
+| 路由 | `/tasks/{id}/execution`、`/execution/step`、`/execution.json`、`/results`、`/activity.json` |
+| 事件种类 | `validation_completed`、`exception_decided`、`review_completed`、`review_reopened`、`execution_approved`、`execution_completed`、`execution_failed` |
+| 测试 | 186 个（W5 的 147 + 39） |
+| 演示数据 | TASK-1001：100 输入 / 88 通过 / 12 异常 → 8 accepted + 3 manual + 1 skip → 99 可写 → 5 步 → 99/100、99.0% |
+| 已知偏差 | 0 异常任务仍进 `review_required`（FR-4.5）；任务状态没有 `partial`，失败记在 run 上；没有重试（T17） |
