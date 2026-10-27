@@ -1,4 +1,4 @@
-# FlowRemote
+﻿# FlowRemote
 
 Mobile supervision and approval for AI-assisted data processing. Week 6 adds the
 second feature: an approved batch now executes in visible steps, ends on a
@@ -140,8 +140,8 @@ progress page and the results page say so.
 
 | Email | Password | Role | Sees |
 | --- | --- | --- | --- |
-| `alex.morgan@example.com` | `flowremote-demo` | operator | only TASK-1001 |
-| `admin@example.com` | `flowremote-demo` | admin | every task |
+| `alex.morgan@example.com` | `123456` | operator | only TASK-1001 |
+| `admin@example.com` | `123456` | admin | every task |
 
 `/signup` also works: a new account starts with no tasks and sees "No tasks
 yet". The demo password exists only for local demos; remove those accounts

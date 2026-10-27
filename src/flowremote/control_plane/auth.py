@@ -1,4 +1,4 @@
-"""User accounts: password hashing, creation, and sign-in checks.
+﻿"""User accounts: password hashing, creation, and sign-in checks.
 
 Standard library only. Passwords are stored as PBKDF2-HMAC-SHA256 with a
 per-user random salt, in the format
@@ -26,7 +26,7 @@ from flowremote.control_plane.db import Database
 
 ALGORITHM = "pbkdf2_sha256"
 ITERATIONS = 200_000
-MIN_PASSWORD_LENGTH = 8
+MIN_PASSWORD_LENGTH = 6
 
 
 class AccountError(ValueError):

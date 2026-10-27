@@ -1,4 +1,4 @@
-"""Seed the local demonstration data for TASK-1001.
+﻿"""Seed the local demonstration data for TASK-1001.
 
 Run from the project root:
 
@@ -39,7 +39,7 @@ PRIMARY_TARGET = "OA - Order Administration"
 SECONDARY_TARGET = "BI - Business Intelligence"
 OPERATOR_EMAIL = "alex.morgan@example.com"
 ADMIN_EMAIL = "admin@example.com"
-DEMO_PASSWORD = "flowremote-demo"
+DEMO_PASSWORD = "123456"
 SEED = 20260930
 BATCH_SIZE = 100
 
