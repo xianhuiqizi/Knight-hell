@@ -178,6 +178,17 @@ def wipe_task(db: Database) -> None:
     """Make the seed re-runnable: remove this task's rows and its children."""
     with db.transaction():
         db.execute(
+            "DELETE FROM ai_suggestion_items WHERE run_id IN "
+            "(SELECT id FROM ai_suggestion_runs WHERE task_id = ?)",
+            (TASK_ID,),
+        )
+        db.execute("DELETE FROM ai_suggestion_runs WHERE task_id = ?", (TASK_ID,))
+        db.execute(
+            "DELETE FROM ai_settings WHERE user_id IN "
+            "(SELECT id FROM users WHERE email IN (?, ?))",
+            (OPERATOR_EMAIL, ADMIN_EMAIL),
+        )
+        db.execute(
             "DELETE FROM decisions WHERE exception_id IN "
             "(SELECT id FROM exceptions WHERE task_id = ?)",
             (TASK_ID,),

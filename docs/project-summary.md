@@ -213,3 +213,38 @@ P2–P5 已全部落地。Week 6 补的是"审批之后"这一段，详细验收
 | 测试 | 186 个（W5 的 147 + 39） |
 | 演示数据 | TASK-1001：100 输入 / 88 通过 / 12 异常 → 8 accepted + 3 manual + 1 skip → 99 可写 → 5 步 → 99/100、99.0% |
 | 已知偏差 | 0 异常任务仍进 `review_required`（FR-4.5）；任务状态没有 `partial`，失败记在 run 上；没有重试（T17） |
+
+## 13. Feature 3：可验证的 AI 异常建议
+
+Feature 3 把原来的空 `agent/` 层实现为“建议，不决策”的链路。操作员可以
+为未决异常请求 AI 修正；系统先检索最多八个精确客户候选，再让离线规则或
+OpenAI 模型返回结构化字段建议。建议必须通过现有 `orders-v1` 全字段校验，
+客户值必须来自检索候选，低置信度或缺少字段的结果不能 Accept。模型不会
+改变异常状态、审批或执行。
+
+| 项目 | 内容 |
+| --- | --- |
+| 迁移 | `0005_ai_suggestions.sql`：`ai_suggestion_runs`、`ai_suggestion_items` |
+| Provider | `agent/providers.py`：离线确定性 Provider、OpenAI Responses API Provider |
+| 服务 | `agent/service.py`：候选检索、结构化清洗、业务校验、幂等、审计 |
+| 路由 | `POST /tasks/{id}/exceptions/{recordId}/suggestions` |
+| 连接设置 | 页面右上角 AI settings 窗口；每个用户独立保存 Provider、模型、兼容 API 地址和加密密钥 |
+| UI | 建议值、置信度、理由、证据、失败原因与生成/重新生成按钮 |
+| Accept | 按结构化字段写回，不再固定写 `amount`；写回前再次全量校验 |
+| 配置 | `FLOWREMOTE_AI_PROVIDER=offline/openai`、模型、API Key、客户目录 |
+| 测试 | 全套 222 passed；Feature 3 新增 28 个专项测试，持久化/部署新增 7 个 |
+| 限制 | 默认离线；真实模型需 API Key。未实现批量生成、自动决策和真实 OA/BI |
+
+详细设计与安全边界见 [p6-report.md](p6-report.md)。
+
+### 用户持久化与数据库切换
+
+注册用户保存在 `users` 表，密码使用 PBKDF2 哈希。默认 SQLite 文件在应用
+重启后仍保留，因此注册用户可以再次登录。
+
+数据库访问通过 `StorageBackend` 协议和可注入的 database factory 隔离。
+本地使用 SQLite；企业部署设置
+`FLOWREMOTE_STORAGE_MODE=enterprise` 和
+`FLOWREMOTE_ENTERPRISE_DATABASE_URL=postgresql://...` 后切换到 PostgreSQL。
+`FLOWREMOTE_DATABASE_URL` 可显式覆盖，旧 `DATABASE_URL` 继续兼容。
+其他企业数据库类型只需实现同一协议，不需要修改认证和路由。

@@ -108,3 +108,79 @@ if (document.querySelector(".action-form")) {
     }
   }
 }
+
+// AI connection window (Feature 3). The header link still works as a normal
+// settings page when JavaScript is unavailable.
+const aiDialog = document.getElementById("ai-settings-dialog");
+if (aiDialog) {
+  const opener = document.querySelector("[data-ai-settings-open]");
+  const closeButton = aiDialog.querySelector("[data-ai-settings-close]");
+  const form = document.getElementById("ai-settings-form-modal");
+  const provider = document.getElementById("ai-provider");
+  const model = document.getElementById("ai-model");
+  const baseUrl = document.getElementById("ai-base-url");
+  const apiKey = document.getElementById("ai-api-key");
+  const keyStatus = document.getElementById("ai-key-status");
+  const status = document.getElementById("ai-settings-status");
+
+  const setStatus = (message, isError = false) => {
+    status.textContent = message;
+    status.classList.toggle("is-error", isError);
+  };
+
+  const fill = (settings) => {
+    provider.value = settings.provider;
+    model.value = settings.model || "";
+    baseUrl.value = settings.base_url || "";
+    apiKey.value = "";
+    keyStatus.textContent = settings.key_configured
+      ? `Saved key: ${settings.key_hint} (${settings.key_source})`
+      : "No saved API key. A server environment key may still be used.";
+  };
+
+  const load = async () => {
+    setStatus("");
+    try {
+      const response = await fetch("/settings/ai", {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("Could not load AI settings.");
+      fill(await response.json());
+    } catch (error) {
+      setStatus(error.message || "Could not load AI settings.", true);
+    }
+  };
+
+  opener?.addEventListener("click", (event) => {
+    if (typeof aiDialog.showModal !== "function") return;
+    event.preventDefault();
+    fill({ provider: "offline", model: "gpt-6-astra", base_url: "", key_configured: false });
+    aiDialog.showModal();
+    load();
+  });
+  closeButton?.addEventListener("click", () => aiDialog.close());
+  aiDialog.addEventListener("click", (event) => {
+    if (event.target === aiDialog) aiDialog.close();
+  });
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setStatus("Saving…");
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams(new FormData(form)),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not save settings.");
+      fill(data.settings);
+      form.querySelector('[name="clear_key"]').checked = false;
+      setStatus("Connection settings saved. No test request was sent.");
+    } catch (error) {
+      setStatus(error.message || "Could not save settings.", true);
+    }
+  });
+}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}AI connection - FlowRemote{% endblock %}
+{% block content %}
+<a class="back" href="/">&larr; All tasks</a>
+<section class="panel settings-panel">
+  <p class="eyebrow">Feature 3</p>
+  <h1>AI connection</h1>
+  <p class="sub">Configure the model used for exception suggestions. The key is encrypted
+    before storage and is never sent back to the browser.</p>
+  {% if saved %}<p class="notice success">AI connection settings saved.</p>{% endif %}
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/settings/ai" class="settings-form">
+    <label class="field-label">Provider
+      <select name="provider" required>
+        <option value="offline" {% if settings.provider == 'offline' %}selected{% endif %}>
+          Offline grounded rules
+        </option>
+        <option value="openai" {% if settings.provider == 'openai' %}selected{% endif %}>
+          OpenAI Responses API / compatible endpoint
+        </option>
+      </select>
+    </label>
+    <label class="field-label">Model
+      <input name="model" value="{{ settings.model }}" maxlength="160" placeholder="gpt-6-astra">
+    </label>
+    <label class="field-label">API base URL <span class="muted">(optional)</span>
+      <input name="base_url" value="{{ settings.base_url }}" inputmode="url"
+             placeholder="https://api.openai.com/v1">
+    </label>
+    <label class="field-label">API key
+      <input name="api_key" type="password" maxlength="4096" autocomplete="new-password"
+             placeholder="Leave blank to keep the saved key">
+    </label>
+    <p class="small muted">
+      {% if settings.key_configured %}
+      Saved key: {{ settings.key_hint }} ({{ settings.key_source }})
+      {% else %}
+      No saved API key. The server environment key, if configured, is used instead.
+      {% endif %}
+    </p>
+    <label class="checkbox-row">
+      <input type="checkbox" name="clear_key" value="1">
+      Remove the saved API key
+    </label>
+    <p class="note">Saving checks the form and encrypts the key. Connection testing is intentionally
+      not performed in this version, so no API request is sent when you save.</p>
+    <button class="btn-primary" type="submit">Save connection</button>
+  </form>
+</section>
+{% endblock %}

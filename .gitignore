@@ -20,3 +20,6 @@ data/seed/
 .idea/
 Thumbs.db
 desktop.ini
+
+# Temporary files created while the bundled feature demo is running.
+demo/.feature3-demo-*/

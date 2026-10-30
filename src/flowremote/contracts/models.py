@@ -27,6 +27,7 @@ from flowremote.contracts.enums import (
     Outcome,
     Role,
     RunState,
+    SuggestionState,
     TaskState,
 )
 from flowremote.contracts.timeutil import utc_now
@@ -355,4 +356,77 @@ class ActivityEvent:
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any] | Any) -> "ActivityEvent":
+        return cls(**_pick(cls, _row_mapping(row)))
+
+
+@dataclass(frozen=True)
+class SuggestionRun:
+    """One auditable AI request for one exception."""
+
+    id: str
+    task_id: str
+    exception_id: str
+    request_id: str
+    status: SuggestionState
+    provider: str
+    prompt_version: str
+    input_hash: str
+    model: str | None = None
+    message: str | None = None
+    raw_response_json: str = "{}"
+    error_code: str | None = None
+    created_at: str = field(default_factory=utc_now)
+    completed_at: str | None = None
+    duration_ms: int | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("id", "task_id", "exception_id", "request_id", "provider",
+                     "prompt_version", "input_hash", "created_at"):
+            _require_text(getattr(self, name), f"SuggestionRun.{name}")
+        status = _coerce(SuggestionState, self.status, "SuggestionRun.status")
+        object.__setattr__(self, "status", status)
+        if status is not SuggestionState.PENDING and not self.completed_at:
+            raise ModelError("a finished suggestion run needs completed_at")
+        if status is SuggestionState.PENDING and self.completed_at is not None:
+            raise ModelError("a pending suggestion run cannot have completed_at")
+        if self.duration_ms is not None and self.duration_ms < 0:
+            raise ModelError("SuggestionRun.duration_ms cannot be negative")
+        if not self.raw_response_json.strip():
+            raise ModelError("SuggestionRun.raw_response_json cannot be blank")
+
+    @property
+    def finished(self) -> bool:
+        return self.status is not SuggestionState.PENDING
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any] | Any) -> "SuggestionRun":
+        return cls(**_pick(cls, _row_mapping(row)))
+
+
+@dataclass(frozen=True)
+class SuggestionItem:
+    """One field-level correction proposed by an AI provider."""
+
+    run_id: str
+    field: str
+    value: str
+    confidence: float
+    reason: str
+    evidence_json: str = "[]"
+
+    def __post_init__(self) -> None:
+        for name in ("run_id", "field", "value", "reason"):
+            _require_text(getattr(self, name), f"SuggestionItem.{name}")
+        try:
+            confidence = float(self.confidence)
+        except (TypeError, ValueError) as exc:
+            raise ModelError("SuggestionItem.confidence must be a number") from exc
+        if not 0.0 <= confidence <= 1.0:
+            raise ModelError("SuggestionItem.confidence must be between 0 and 1")
+        object.__setattr__(self, "confidence", confidence)
+        if not isinstance(self.evidence_json, str):
+            raise ModelError("SuggestionItem.evidence_json must be a JSON array string")
+
+    @classmethod
+    def from_row(cls, row: Mapping[str, Any] | Any) -> "SuggestionItem":
         return cls(**_pick(cls, _row_mapping(row)))

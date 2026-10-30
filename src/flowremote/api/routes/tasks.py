@@ -13,6 +13,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from flowremote.agent.service import suggestion_context
 from flowremote.api.deps import current_user, get_db
 from flowremote.api.rendering import render
 from flowremote.contracts.enums import Role
@@ -35,6 +36,13 @@ EXCEPTION_STATUS_LABELS = {
     "accepted": "Accepted",
     "manual": "Manual",
     "skipped": "Skipped",
+}
+
+SUGGESTION_STATUS_LABELS = {
+    "pending": "Generating",
+    "completed": "AI review complete",
+    "invalid": "AI response rejected",
+    "failed": "AI request failed",
 }
 
 SUMMARY_SQL = """
@@ -88,6 +96,9 @@ def _decorate_exception(row: dict) -> dict:
     # A fresh idempotency key per rendered row: a double-click sends the same
     # value twice, and the second request is recognised as a replay.
     item["decision_id"] = secrets.token_hex(8) if item["status"] == "unresolved" else ""
+    item["suggestion_request_id"] = (
+        secrets.token_hex(12) if item["status"] == "unresolved" else ""
+    )
     return item
 
 
@@ -117,18 +128,33 @@ def load_task_page(db: Database, user: User, task_id: str, page: int = 1) -> dic
     task = _decorate_task(rows[0])
     total_pages = max(1, (task["exceptions"] + 99) // 100)
     page = min(max(1, page), total_pages)
-    exceptions = [
-        _decorate_exception(row)
-        for row in db.query(
-            "SELECT e.record_id, e.issue, e.flagged_fields, e.original_value,"
+    ai_context = suggestion_context(db, task_id)
+    exceptions = []
+    for row in db.query(
+            "SELECT e.id, e.record_id, e.issue, e.flagged_fields, e.original_value,"
             " e.suggestion, e.confidence, e.reason, e.status, e.resolved_value,"
             " e.reviewed_at, u.name AS reviewer_name, i.excel_row, i.order_id, i.current_json"
             " FROM exceptions e LEFT JOIN users u ON u.id = e.reviewed_by"
             " LEFT JOIN order_inputs i ON i.task_id = e.task_id AND i.record_id = e.record_id"
             " WHERE e.task_id = ? ORDER BY i.excel_row, e.record_id LIMIT 100 OFFSET ?",
             (task_id, (page - 1) * 100),
+        ):
+        item = _decorate_exception(row)
+        ai = ai_context.get(item["id"], {})
+        latest_run = ai.get("latest")
+        active_run = ai.get("active")
+        items = ai.get("items", [])
+        for suggestion in items:
+            suggestion["confidence_label"] = f"{round(float(suggestion['confidence']) * 100)}%"
+        item["latest_suggestion_run"] = latest_run
+        item["latest_suggestion_status_label"] = (
+            SUGGESTION_STATUS_LABELS.get(latest_run["status"], latest_run["status"])
+            if latest_run
+            else ""
         )
-    ]
+        item["active_suggestion_run"] = active_run
+        item["ai_suggestion_items"] = items
+        exceptions.append(item)
     for item in exceptions:
         item["edit_values"] = json.loads(item["current_json"]) if item["current_json"] else None
     unresolved = task["unresolved"]

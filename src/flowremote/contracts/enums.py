@@ -65,6 +65,15 @@ class ActorKind(StrEnum):
     ENGINE = "engine"
 
 
+class SuggestionState(StrEnum):
+    """The lifecycle of one AI suggestion request."""
+
+    PENDING = "pending"
+    COMPLETED = "completed"
+    INVALID = "invalid"
+    FAILED = "failed"
+
+
 class Outcome(StrEnum):
     """How one source record came out of validation."""
 

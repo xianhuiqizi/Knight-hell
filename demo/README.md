@@ -1,4 +1,51 @@
-# FlowRemote - interactive demo
+# FlowRemote demos
+
+## Feature 3 AI exception review
+
+`run_feature3_demo.py` starts the **real FastAPI application** with an isolated
+temporary database, three synthetic orders, a customer registry and the offline
+AI provider. It does not touch the development database and does not call an
+external model.
+
+Run the complete interactive demo:
+
+```powershell
+cd 'E:\knight_hell'
+.\.venv\Scripts\python.exe demo\run_feature3_demo.py
+```
+
+The script opens `http://127.0.0.1:8765` and prints the demo account:
+
+```text
+alex.morgan@example.com
+123456
+```
+
+What to demonstrate:
+
+1. Open **AI settings** in the header.
+2. Confirm that the offline provider or an OpenAI Responses-compatible endpoint,
+   model and API key can be configured. Saving does not make a test request.
+3. Open `TASK-FEATURE3`.
+4. Generate an AI suggestion for `ORD-001`; the customer registry uniquely
+   resolves `Alex Morgan` to `C-1005`.
+5. Note that the exception remains unresolved and no human decision exists yet.
+6. Click **Accept** and observe the decision, resolved field and activity log.
+7. `ORD-002` has no reliable quantity evidence, so the offline provider should
+   return no guess.
+
+Use `--no-browser` when starting it from another terminal. Run a repeatable
+automated check without starting a web server:
+
+```powershell
+.\.venv\Scripts\python.exe demo\run_feature3_demo.py --check
+```
+
+The temporary database is removed when the process exits. The online provider
+cannot be connection-tested without the user's own API key; this demo deliberately
+uses the offline provider for a network-free, reproducible result.
+
+## Standalone Week 5 prototype
 
 A self-contained prototype of the Week 5 flow: sign in, review the flagged
 records, then approve the batch. It runs in any modern browser with **no

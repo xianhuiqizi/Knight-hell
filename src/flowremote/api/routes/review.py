@@ -14,6 +14,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from flowremote.agent.service import accepted_changes
 from flowremote.api.deps import current_user, get_db
 from flowremote.api.forms import read_form
 from flowremote.api.rendering import render
@@ -86,7 +87,12 @@ async def record_decision(
             result = decide(exception, action, value)
             if real_order and action != "skip":
                 if action == "accept":
-                    changes = {"amount": result.resolved_value}
+                    suggested = accepted_changes(db, exception)
+                    if not suggested:
+                        raise DecisionRejected(
+                            "this AI suggestion cannot be verified as a complete correction"
+                        )
+                    changes = suggested
                 apply_correction(db, task_id, record_id, changes)
             now = utc_now()
             db.execute(

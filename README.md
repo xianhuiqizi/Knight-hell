@@ -1,9 +1,9 @@
 ﻿# FlowRemote
 
-Mobile supervision and approval for AI-assisted data processing. Week 6 adds the
-second feature: an approved batch now executes in visible steps, ends on a
-results page, and leaves an activity log. Execution is simulated — nothing is
-written to a real OA or BI system.
+Mobile supervision and approval for AI-assisted data processing. Week 7 adds the
+third feature: an operator can request a grounded AI correction for an exception,
+inspect its confidence and evidence, and explicitly accept it. Execution is
+simulated — nothing is written to a real OA or BI system.
 
 ## What works today
 
@@ -12,17 +12,21 @@ written to a real OA or BI system.
 - `src/flowremote/control_plane/` - the database (migrations, one
   `DATABASE_URL` for SQLite and PostgreSQL), the review rules (tally, approval
   gate), password/account handling, and the append-only activity log.
+- `src/flowremote/agent/` - provider-independent suggestion contracts, a
+  deterministic offline provider, the OpenAI structured-output provider, and
+  the validation/audit service.
 - `src/flowremote/api/` - FastAPI app: sign-up, sign-in, sign-out, signed
   session cookies, task list and task detail filtered by role, the
   Accept / Edit / Skip endpoint, the approval page and the approval write, and
-  the execution progress, results and activity-export routes.
+  the AI-suggestion route plus the execution progress, results and
+  activity-export routes.
 - `src/flowremote/rpa/` - the step rules for one execution run (pure functions).
 - `src/flowremote/connectors/` - simulated OA / BI targets; no network calls.
 - `src/flowremote/ui/` - Jinja templates and one dark stylesheet.
 - `src/flowremote/devtools/` - the demonstration data generator.
-- `tests/` - model rules, review rules, database constraints, passwords,
-  sessions, authentication, isolation, decisions, approval, execution and
-  workbook uploads.
+- `tests/` - model rules, AI providers and suggestion verification, review
+  rules, database constraints, passwords, sessions, authentication, isolation,
+  decisions, approval, execution and workbook uploads.
 
 ## Run it
 
@@ -43,6 +47,45 @@ uv run python -m pytest tests -q
 ```
 
 Open `http://127.0.0.1:8000`.
+
+## User persistence and enterprise database switching
+
+Registration is persistent. A new account is stored in the `users` table with a
+salted PBKDF2 password hash, and sign-in reads that database on every request.
+With the default local configuration, `data/runtime/flowremote.db` survives app
+restarts, so a registered user can sign in later. Do not run the development
+`seed.py --reset` command after creating accounts you want to keep: reset is
+intended only for rebuilding the demonstration data.
+
+The application uses a `StorageBackend` interface and a replaceable database
+factory. Routes and authentication do not know whether the implementation is
+local SQLite or an enterprise PostgreSQL database.
+
+Local development:
+
+```text
+FLOWREMOTE_STORAGE_MODE=local
+FLOWREMOTE_DATABASE_URL=sqlite:///data/runtime/flowremote.db
+```
+
+Enterprise deployment:
+
+```text
+FLOWREMOTE_STORAGE_MODE=enterprise
+FLOWREMOTE_ENTERPRISE_DATABASE_URL=postgresql://user:password@db.example.com:5432/flowremote
+```
+
+`FLOWREMOTE_DATABASE_URL` takes precedence over the enterprise-specific
+variable. The legacy `DATABASE_URL` remains supported. Never commit the real
+connection string. The deployed app user should have only the schema/table
+permissions needed by the application, and the migrations run automatically on
+startup. A DBA can apply
+`src/flowremote/control_plane/migrations/*.sql` ahead of time when production
+policy does not allow runtime DDL.
+
+PostgreSQL support is included through `psycopg[binary]`. If the company uses
+another database family, implement the same `StorageBackend` protocol and pass
+its factory to `create_app` rather than modifying authentication or route code.
 
 ## Creating a task
 
@@ -105,6 +148,53 @@ Each action writes one row to Decisions and lowers the unresolved counter. The
 banner above the table shows the approval gate: it opens only when the counter
 reaches zero.
 
+## Getting and accepting an AI suggestion
+
+Use **Generate AI suggestion** on an unresolved exception. The default provider
+is deterministic and needs no network. It can:
+
+- recover a missing `customer_id` or `customer_name` only from one exact
+  customer-registry match;
+- calculate an amount from quantity × unit price;
+- return no suggestion when the evidence is insufficient.
+
+The page shows each proposed value with confidence, explanation and evidence.
+An AI response that names an invented customer, omits part of a multi-field
+correction, fails the normal order checks, or falls below 70% confidence is not
+offered for Accept. The operator can still use Edit or Skip.
+
+Generating a suggestion never changes the exception state and never approves or
+executes a batch. Accept re-applies the structured suggestion to the correct
+fields and runs the same full validation used by manual corrections.
+
+To use a live model, copy `.env.example` to `.env` and set:
+
+```text
+FLOWREMOTE_AI_PROVIDER=openai
+FLOWREMOTE_AI_MODEL=gpt-6-astra
+OPENAI_API_KEY=...
+```
+
+Signed-in users can also open **AI settings** from the header. The window saves
+the provider, model and optional Responses-compatible base URL for that account.
+An entered API key is encrypted with a key derived from the application secret;
+the browser only receives a masked hint afterwards. Leaving the key blank keeps
+the saved key, and **Remove the saved API key** deletes it.
+
+The connection window validates HTTPS endpoints and permits HTTP only for
+localhost development. It deliberately does not send a test request when saved,
+so configuration can be prepared without a working or billable API account.
+Until a request is made, a saved configuration only affects which provider and
+model Feature 3 will use for the next exception suggestion.
+
+The OpenAI provider uses the Responses API with schema-constrained structured
+output. Missing credentials, network errors and malformed responses are stored
+as failed or invalid suggestion runs and do not expose the API key or block
+manual review. The customer registry defaults to
+`data/seed/customer_registry.csv`; `FLOWREMOTE_CUSTOMER_REGISTRY` can override
+it. Regenerating after a failure does not overwrite the last verified
+suggestion.
+
 ## Approving the batch
 
 When the counter reaches zero the banner offers **Proceed**. The approval page
@@ -164,7 +254,7 @@ src/flowremote/
   control_plane/  database, migrations, review rules, accounts, activity log
   api/            FastAPI app, sessions, routes
   ui/             templates and static assets
-  agent/          the AI step (not built yet)
+  agent/          suggestion providers, safeguards and audit orchestration
   rpa/            execution step rules (simulated runner)
   connectors/     simulated OA / BI targets
   devtools/       seed data and local helpers
@@ -172,9 +262,10 @@ src/flowremote/
 
 ## Not built yet
 
-The AI suggestion service, retry after a partial write, and the real OA/BI
-connectors. Execution itself is simulated: the counts are real database state,
-the outward writes are not.
+Retry after a partial write and the real OA/BI connectors. Execution itself is
+simulated: the counts are real database state, the outward writes are not. A
+live AI provider is implemented but requires the operator's own API key; the
+offline provider is the default for tests and demonstrations.
 
 ## Notes
 
@@ -183,4 +274,5 @@ the outward writes are not.
 - `docs/p3-report.md` records what P3 changed and how it was verified.
 - `docs/p4-report.md` records what P4 changed and how it was verified.
 - `docs/p5-report.md` records what the Week 6 feature changed and how it was verified.
+- `docs/p6-report.md` records the Feature 3 design, safeguards and verification.
 - `prompts/prompt-log.md` is the AI-use log required by the course.

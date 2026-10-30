@@ -279,13 +279,15 @@ def save_analysis(db, task_id, header_row, results, summary):
     )
 
 
-def apply_correction(db, task_id, record_id, changes):
-    """Recheck every field and batch uniqueness before resolving a real order."""
+def validate_proposed_changes(db, task_id, record_id, changes):
+    """Validate a proposed correction without changing the database."""
     row = db.query(
         "SELECT current_json FROM order_inputs WHERE task_id = ? AND record_id = ?",
         (task_id, record_id),
-    )[0]
-    raw = json.loads(row["current_json"])
+    )
+    if not row:
+        raise ValidationError("this record has no uploaded order values to correct")
+    raw = json.loads(row[0]["current_json"])
     raw.update({field: text_value(value) for field, value in changes.items() if field in FIELDS})
     others = db.query(
         "SELECT i.order_id FROM order_inputs i LEFT JOIN exceptions e"
@@ -296,6 +298,12 @@ def apply_correction(db, task_id, record_id, changes):
     counts = Counter(item["order_id"] for item in others)
     counts[raw["order_id"]] += 1
     issues, values, _ = validate_order(raw, counts)
+    return raw, values, issues
+
+
+def apply_correction(db, task_id, record_id, changes):
+    """Recheck every field and batch uniqueness before resolving a real order."""
+    raw, values, issues = validate_proposed_changes(db, task_id, record_id, changes)
     if issues:
         raise ValidationError(" ".join(item["message"] for item in issues))
     db.execute(

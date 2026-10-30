@@ -236,6 +236,133 @@ a:hover { text-decoration: underline; }
 .validation-panel { margin-bottom: 20px; }
 
 /* Execution progress and results (Feature 2). */
+.badge-ai {
+  border-color: #3c8f8a;
+  color: #8fe3dc;
+}
+
+.ai-suggestion {
+  display: grid;
+  gap: 7px;
+  min-width: 210px;
+}
+
+.ai-change {
+  border-left: 2px solid rgba(76, 180, 171, 0.55);
+  padding-left: 8px;
+}
+
+.ai-change strong {
+  color: var(--text);
+}
+
+.ai-run-status {
+  margin: 7px 0 0;
+  max-width: 320px;
+}
+
+.suggestion-form {
+  margin-top: 6px;
+}
+
+.btn-mini-ai {
+  border-color: rgba(76, 180, 171, 0.65);
+  color: #a9f1eb;
+}
+
+.btn-mini-ai:hover {
+  background: rgba(76, 180, 171, 0.14);
+}
+
+.ai-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(760px, calc(100vh - 32px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  color: var(--text);
+  background: var(--card);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.ai-dialog::backdrop {
+  background: rgba(4, 8, 12, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.dialog-head,
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dialog-head h2 {
+  margin: 2px 0 8px;
+}
+
+.dialog-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.field-label {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  font-weight: 600;
+}
+
+.field-label input,
+.field-label select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: var(--text);
+  background: var(--bg-soft);
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 14px 0;
+}
+
+.dialog-actions {
+  margin-top: 22px;
+}
+
+.ai-settings-status {
+  min-height: 1.4em;
+  margin: 10px 0;
+  color: #8fe3dc;
+}
+
+.ai-settings-status.is-error {
+  color: #ffb4a8;
+}
+
+.settings-panel {
+  max-width: 720px;
+  margin: 24px auto;
+}
+
+.settings-form {
+  margin-top: 24px;
+}
+
+.notice.success {
+  border-color: rgba(76, 180, 171, 0.55);
+  color: #a9f1eb;
+}
 .gate-actions { display: flex; align-items: center; gap: 10px; }
 .progress { margin: 18px 0 6px; }
 .progress-track {

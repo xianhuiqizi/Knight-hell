@@ -17,6 +17,7 @@
     <div class="who">
       <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
       <span class="who-name">{{ user.name }}</span>
+      <a class="btn-ghost" href="/settings/ai" data-ai-settings-open>AI settings</a>
       <form method="post" action="/logout" class="inline">
         <button type="submit" class="btn-ghost">Sign out</button>
       </form>
@@ -26,5 +27,48 @@
   <main class="page">
     {% block content %}{% endblock %}
   </main>
+  {% if user %}
+  <dialog id="ai-settings-dialog" class="ai-dialog" aria-labelledby="ai-settings-title">
+    <form id="ai-settings-form-modal" method="post" action="/settings/ai">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">Feature 3</p>
+          <h2 id="ai-settings-title">AI connection</h2>
+        </div>
+        <button type="button" class="dialog-close" data-ai-settings-close aria-label="Close">&times;</button>
+      </div>
+      <p class="muted small">Choose how FlowRemote proposes exception corrections. AI remains advisory;
+        approval and execution still require a person.</p>
+      <label class="field-label">Provider
+        <select name="provider" id="ai-provider">
+          <option value="offline">Offline grounded rules</option>
+          <option value="openai">OpenAI Responses API</option>
+        </select>
+      </label>
+      <label class="field-label">Model
+        <input name="model" id="ai-model" value="gpt-6-astra" maxlength="160"
+               placeholder="gpt-6-astra">
+      </label>
+      <label class="field-label">API base URL <span class="muted">(optional)</span>
+        <input name="base_url" id="ai-base-url" inputmode="url"
+               placeholder="https://api.openai.com/v1">
+      </label>
+      <label class="field-label">API key
+        <input name="api_key" id="ai-api-key" type="password" maxlength="4096"
+               autocomplete="new-password" placeholder="Leave blank to keep the saved key">
+      </label>
+      <p class="small muted" id="ai-key-status">No saved API key.</p>
+      <label class="checkbox-row">
+        <input type="checkbox" name="clear_key" value="1">
+        Remove the saved API key
+      </label>
+      <p class="small ai-settings-status" id="ai-settings-status" role="status"></p>
+      <div class="dialog-actions">
+        <a class="btn-ghost" href="/settings/ai">Open full settings</a>
+        <button class="btn-primary" type="submit">Save connection</button>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
 </body>
 </html>

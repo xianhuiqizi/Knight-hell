@@ -115,8 +115,41 @@
           {% if item.reason %}<p class="small muted issue-reason">{{ item.reason }}</p>{% endif %}</td>
         <td class="mono small">{{ item.flagged_fields }}</td>
         <td class="muted">{{ item.original_value }}</td>
-        <td>{{ item.suggestion or "(none)" }}</td>
-        <td class="small">{{ ('Quantity × unit price' if item.suggestion else 'Manual correction needed') if validation else item.confidence_label }}</td>
+        <td>
+          {% if item.ai_suggestion_items %}
+          <div class="ai-suggestion">
+            <span class="badge badge-ai">AI suggestion</span>
+            {% for change in item.ai_suggestion_items %}
+            <div class="ai-change">
+              <strong>{{ change.value }}</strong>
+              <span class="small muted">{{ change.field }} · {{ change.confidence_label }} confidence</span>
+              <p class="small">{{ change.reason }}</p>
+              {% if change.evidence %}
+              <p class="small muted">Evidence: {{ change.evidence|join(' · ') }}</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          {{ item.suggestion or "(none)" }}
+          {% endif %}
+          {% if item.latest_suggestion_run %}
+          <p class="small muted ai-run-status">
+            {{ item.latest_suggestion_status_label }}
+            {%- if item.latest_suggestion_run.model %} · {{ item.latest_suggestion_run.provider }}/{{ item.latest_suggestion_run.model }}{% endif %}
+            {%- if item.latest_suggestion_run.message %} · {{ item.latest_suggestion_run.message }}{% endif %}
+          </p>
+          {% endif %}
+        </td>
+        <td class="small">
+          {% if item.active_suggestion_run %}
+          AI · {{ item.active_suggestion_run.provider }}/{{ item.active_suggestion_run.model or 'default' }}
+          {% elif item.suggestion %}
+          {{ 'Rule-based calculation' if validation else item.confidence_label }}
+          {% else %}
+          Manual correction needed
+          {% endif %}
+        </td>
         <td><span class="badge badge-{{ item.status }}">{{ item.status_label }}</span></td>
         <td class="actions">
           {% if item.status == 'unresolved' %}
@@ -141,6 +174,13 @@
             <button class="btn-mini" name="action" value="edit">Save</button>
             {% endif %}
           </form>
+          <form method="post" class="suggestion-form"
+                action="/tasks/{{ task.id }}/exceptions/{{ item.record_id }}/suggestions">
+            <input type="hidden" name="request_id" value="{{ item.suggestion_request_id }}">
+            <button class="btn-mini btn-mini-ai" type="submit">
+              {{ 'Regenerate AI suggestion' if item.latest_suggestion_run else 'Generate AI suggestion' }}
+            </button>
+          </form>
           {% else %}
           <span class="muted small">{{ item.resolved_value or "-" }}
             {%- if item.reviewer_name %} · {{ item.reviewer_name }}{% endif %}</span>
@@ -159,7 +199,8 @@
 {% else %}
 <p class="muted">No exceptions in this batch.</p>
 {% endif %}
-<p class="note">Accept applies the suggested value. Edit saves your correction{% if validation %} only after all checks pass{% endif %}.
-  Skip excludes the order from the run. Original files and original findings remain available.</p>
+<p class="note">AI suggestions are advisory and are checked again before Accept writes them.
+  Edit saves your correction{% if validation %} only after all checks pass{% endif %};
+  Skip excludes the order. AI cannot approve or execute a batch.</p>
 {% endif %}
 {% endblock %}

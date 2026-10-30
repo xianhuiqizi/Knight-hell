@@ -24,10 +24,12 @@ from __future__ import annotations
 import os
 import sqlite3
 import uuid
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Protocol, Self, runtime_checkable
 
 # src/flowremote/control_plane/db.py -> project root is three levels up.
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -35,9 +37,54 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 DEFAULT_SQLITE_PATH = PROJECT_ROOT / "data" / "runtime" / "flowremote.db"
 
 
+@dataclass(frozen=True)
+class StorageConfig:
+    """Resolved storage location and its deployment mode."""
+
+    url: str
+    mode: str
+    source: str
+
+    @property
+    def engine(self) -> str:
+        return "sqlite" if self.url.startswith("sqlite:") else "postgres"
+
+
+@runtime_checkable
+class StorageBackend(Protocol):
+    """The database surface used by routes and control-plane modules.
+
+    A different enterprise database adapter can implement this protocol and be
+    injected into ``create_app`` without changing authentication or routes.
+    """
+
+    url: str
+    engine: str
+
+    def connect(self) -> Self: ...
+
+    def close(self) -> None: ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(self, *_exc: object) -> None: ...
+
+    def execute(self, sql: str, params: Sequence[Any] = ()) -> Any: ...
+
+    def query(self, sql: str, params: Sequence[Any] = ()) -> list[dict]: ...
+
+    def scalar(
+        self, sql: str, params: Sequence[Any] = (), default: Any = None
+    ) -> Any: ...
+
+    def transaction(self) -> Any: ...
+
+    def apply_migrations(self, directory: Path | None = None) -> list[str]: ...
+
+
 def utc_now() -> str:
     """Current UTC time as ISO-8601 text with second precision."""
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def new_id(prefix: str) -> str:
@@ -45,27 +92,72 @@ def new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:10].upper()}"
 
 
-def database_url(url: str | None = None) -> str:
-    """Resolve the connection string: argument, then environment, then default."""
+def _storage_config(url: str, source: str) -> StorageConfig:
+    if url.startswith("sqlite:"):
+        return StorageConfig(url=url, mode="local", source=source)
+    if url.startswith(("postgresql:", "postgres:")):
+        return StorageConfig(url=url, mode="enterprise", source=source)
+    raise ValueError(f"unsupported database URL in {source}")
+
+
+def resolve_storage_config(url: str | None = None) -> StorageConfig:
+    """Resolve local or enterprise storage without changing application code.
+
+    Precedence:
+    1. explicit argument;
+    2. ``FLOWREMOTE_DATABASE_URL``;
+    3. enterprise variables when ``FLOWREMOTE_STORAGE_MODE=enterprise``;
+    4. legacy ``DATABASE_URL``;
+    5. local SQLite.
+    """
     if url:
-        return url
-    from_env = os.environ.get("DATABASE_URL")
-    if from_env and from_env.strip():
-        return from_env.strip()
-    return "sqlite:///" + DEFAULT_SQLITE_PATH.as_posix()
+        return _storage_config(url.strip(), "explicit")
+
+    configured = os.environ.get("FLOWREMOTE_DATABASE_URL", "").strip()
+    if configured:
+        return _storage_config(configured, "FLOWREMOTE_DATABASE_URL")
+
+    mode = os.environ.get("FLOWREMOTE_STORAGE_MODE", "").strip().lower()
+    if mode in {"enterprise", "server"}:
+        enterprise = os.environ.get("FLOWREMOTE_ENTERPRISE_DATABASE_URL", "").strip()
+        if not enterprise:
+            enterprise = os.environ.get("DATABASE_URL", "").strip()
+        if not enterprise:
+            raise ValueError(
+                "Enterprise storage is selected but no PostgreSQL URL is configured."
+            )
+        config = _storage_config(enterprise, "FLOWREMOTE_ENTERPRISE_DATABASE_URL")
+        if config.engine != "postgres":
+            raise ValueError("Enterprise storage mode requires a PostgreSQL database URL.")
+        return config
+    if mode and mode != "local":
+        raise ValueError(
+            "FLOWREMOTE_STORAGE_MODE must be 'local' or 'enterprise', "
+            f"got {mode!r}"
+        )
+
+    legacy = os.environ.get("DATABASE_URL", "").strip()
+    if legacy:
+        return _storage_config(legacy, "DATABASE_URL")
+    return _storage_config(
+        "sqlite:///" + DEFAULT_SQLITE_PATH.as_posix(),
+        "local default",
+    )
+
+
+def database_url(url: str | None = None) -> str:
+    """Backward-compatible connection-string helper."""
+    return resolve_storage_config(url).url
 
 
 class Database:
     """A small wrapper so no other module has to think about the engine."""
 
     def __init__(self, url: str | None = None) -> None:
-        self.url = database_url(url)
-        if self.url.startswith("sqlite:"):
-            self.engine = "sqlite"
-        elif self.url.startswith(("postgresql:", "postgres:")):
-            self.engine = "postgres"
-        else:
-            raise ValueError(f"unsupported DATABASE_URL: {self.url}")
+        self.storage = resolve_storage_config(url)
+        self.url = self.storage.url
+        self.engine = self.storage.engine
+        self.mode = self.storage.mode
         self._conn: Any = None
 
     # -- connection ------------------------------------------------------
@@ -79,7 +171,7 @@ class Database:
         path = Path(raw)
         return path if path.is_absolute() else PROJECT_ROOT / path
 
-    def connect(self) -> "Database":
+    def connect(self) -> Self:
         if self.engine == "sqlite":
             if self.is_memory:
                 conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
@@ -113,7 +205,7 @@ class Database:
             self._conn.close()
             self._conn = None
 
-    def __enter__(self) -> "Database":
+    def __enter__(self) -> Self:
         return self.connect()
 
     def __exit__(self, *_exc: object) -> None:
@@ -202,6 +294,11 @@ def split_statements(sql_text: str) -> list[str]:
     if current:
         raise ValueError("migration ends with an unterminated statement: " + "\n".join(current))
     return statements
+
+
+def open_database(url: str | None = None) -> StorageBackend:
+    """Application database factory, replaceable for another enterprise adapter."""
+    return Database(url)
 
 
 def main() -> int:
