@@ -17,6 +17,20 @@
       <span class="badge badge-state">{{ task.status_label }}</span>
     </div>
     <h2>{{ task.workflow }}</h2>
+    {% if task.task_mode == 'normalize' %}
+    <p class="task-file">{{ task.source_files or 0 }} source files · multi-source cleanup</p>
+    {% if task.normalize_status in ('uploaded', 'canceled') %}
+    <p class="small muted">{{ 'Batch ready — open to start cleaning.' if task.normalize_status == 'uploaded' else 'Run canceled — open to start again.' }}</p>
+    {% elif task.normalize_status == 'running' %}
+    <p class="small muted">Cleaning in progress — open to follow the live progress.</p>
+    {% else %}
+    <div class="stats">
+      <div><span class="n">{{ task.normalize_raw or 0 }}</span><span class="l">source rows</span></div>
+      <div><span class="n">{{ task.normalize_records or 0 }}</span><span class="l">records</span></div>
+      <div><span class="n">{{ task.normalize_issues or 0 }}</span><span class="l">to confirm</span></div>
+    </div>
+    {% endif %}
+    {% else %}
     <p class="task-file">{{ task.source_file }} · {{ task.batch_size }} records</p>
     {% if task.status in ('ready', 'validating') %}
     <p class="small muted">File saved · {{ 'Awaiting validation' if task.status == 'ready' else 'Validation in progress' }}</p>
@@ -26,6 +40,7 @@
       <div><span class="n">{{ task.exceptions }}</span><span class="l">exceptions</span></div>
       <div><span class="n">{{ task.unresolved }}</span><span class="l">unresolved</span></div>
     </div>
+    {% endif %}
     {% endif %}
   </a>
   {% endfor %}

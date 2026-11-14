@@ -22,6 +22,7 @@ from flowremote.agent.providers import SuggestionProvider, provider_from_env
 from flowremote.api.routes import ai_settings as ai_settings_routes
 from flowremote.api.routes import approval as approval_routes
 from flowremote.api.routes import execution as execution_routes
+from flowremote.api.routes import normalization as normalization_routes
 from flowremote.api.routes import review as review_routes
 from flowremote.api.routes import session as session_routes
 from flowremote.api.routes import onboarding as onboarding_routes
@@ -66,7 +67,7 @@ def create_app(
             db.apply_migrations()
         yield
 
-    app = FastAPI(title="FlowRemote", version="0.5.0", lifespan=lifespan)
+    app = FastAPI(title="FlowRemote", version="0.6.0", lifespan=lifespan)
     app.state.database_url = url
     app.state.database_factory = database_factory
     app.state.storage = storage
@@ -109,6 +110,7 @@ def create_app(
     app.include_router(onboarding_routes.router)
     app.include_router(settings_routes.router)
     app.include_router(upload_routes.router)
+    app.include_router(normalization_routes.router)
     app.include_router(task_routes.router)
     app.include_router(review_routes.router)
     app.include_router(sync_routes.router)

@@ -1,46 +1,90 @@
 {% extends "base.html" %}
-{% block title %}New task - FlowRemote{% endblock %}
+{% block title %}New cleanup task - FlowRemote{% endblock %}
 {% block content %}
 <a class="back" href="/">&larr; All tasks</a>
 <div class="page-head" data-guide-section="task-create">
-  <p class="eyebrow">START A BATCH</p>
+  <p class="eyebrow">MULTI-SOURCE CLEANUP</p>
   <h1>New task</h1>
-  <p class="sub">Name your task and upload the Excel workbook you want to process.</p>
+  <p class="sub">Bring up to six different order files together. FlowRemote detects each format,
+    maps the columns, normalizes units and dates, merges duplicate orders and gives you a clean
+    Excel result.</p>
 </div>
-<form class="upload-card" method="post" action="/tasks" enctype="multipart/form-data"
-      data-guide-section="task-upload">
-  {% if error %}<p class="alert" role="alert">{{ error }} Please select your file again.</p>{% endif %}
+
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+
+<form class="upload-card normalize-upload" method="post" action="/tasks/normalize"
+      enctype="multipart/form-data" data-multi-upload
+      data-max-files="{{ max_files }}" data-max-file-bytes="10485760"
+      data-max-total-bytes="20971520">
+  <div class="upload-card-head">
+    <div>
+      <p class="eyebrow">Demo Day flow</p>
+      <h2>Multi-source data cleanup</h2>
+    </div>
+    <span class="badge">Rules-only · no network</span>
+  </div>
+  <p class="small muted">Choose 5–6 files of different shapes. The rules engine handles
+    header offsets, aliases, shuffled columns, unit conversions and mixed date formats. A bad
+    file becomes an item to confirm; it never fails the whole batch.</p>
+
   <label for="task-name">Task name</label>
   <input id="task-name" name="name" type="text" maxlength="120" required
-         placeholder="e.g. October order review" value="{{ name }}" autofocus>
-  <label for="task-file">Excel workbook</label>
-  <div class="file-picker">
-    <input id="task-file" name="file" type="file" accept=".xlsx" required
-           aria-describedby="file-help file-name">
+         placeholder="e.g. Demo Day data cleanup" value="{{ name }}" autofocus>
+
+  <label for="multi-files">Source files</label>
+  <div class="file-picker multi-picker">
+    <input id="multi-files" name="files" type="file" accept=".xlsx,.csv" multiple required
+           aria-describedby="multi-file-help multi-file-summary">
     <div class="file-picker-display" aria-hidden="true">
-      <span class="file-picker-button">Choose file</span>
-      <span id="file-name">No file selected</span>
+      <span class="file-picker-button">Choose files</span>
+      <span id="multi-file-name">No files selected</span>
     </div>
   </div>
-  <p id="file-help" class="small muted">.xlsx only, up to 10 MB. On the first worksheet, the first
-    non-empty row is treated as column headers (within the first 1,000 rows). Leading blank rows
-    are skipped. Include 1–10,000 rows below the headers, with at most 256 columns.
-    Blank data rows are not counted as records.</p>
-  <p class="small"><a href="/orders-template.xlsx">Download order template</a>
-    · <a href="/demo-orders.xlsx">Download bundled demo orders</a>
-    · Replace the example row with your orders.</p>
-  <p class="small muted">Required columns: order_id (Order ID), customer_name (Customer name),
-    customer_id (Customer ID), quantity (Quantity), unit_price (Unit price), amount (Amount), order_date (Order date).
-    Common English and Chinese headers are accepted. Paste values instead of formulas.</p>
+  <p id="multi-file-help" class="small muted">1–6 files, each up to 10 MB, 20 MB combined.
+    Accepts .xlsx and .csv. Select all six Demo Day files in one picker.</p>
+  <p id="multi-file-summary" class="small file-summary" aria-live="polite"></p>
+  <ul id="multi-file-list" class="selected-file-list" aria-label="Selected files"></ul>
+  <p id="multi-file-error" class="alert compact-alert" role="alert" hidden></p>
+
   <div class="upload-summary">
-    <strong>Owned by {{ user.name }}</strong>
-    <p class="small muted">Your task and original file will be saved to your account.
-      Uploading checks required values, duplicate order IDs, quantities, prices, totals and dates.
-      Results and exceptions come from your workbook. Nothing is sent to OA or BI.</p>
+    <strong>What happens next</strong>
+    <p class="small muted">The next screen shows every file with its detected sheet, row count,
+      field count and status. Press <strong>Start cleaning</strong> there. You can cancel without
+      keeping partial normalized rows. Download becomes available when the run has a result.</p>
   </div>
   <div class="upload-actions">
-    <button class="btn-primary" type="submit">Create &amp; validate</button>
+    <button class="btn-primary" type="submit">Upload &amp; detect</button>
     <a class="back" href="/">Cancel</a>
   </div>
 </form>
+
+<details class="legacy-upload">
+  <summary>Single Excel workbook (legacy orders-v1 validation)</summary>
+  <form class="upload-card" method="post" action="/tasks" enctype="multipart/form-data">
+    <p class="small muted">This keeps the original FlowRemote flow: one standardized .xlsx,
+      deterministic order validation, review and approval. Use it when the source is already
+      on the order template.</p>
+    <label for="legacy-name">Task name</label>
+    <input id="legacy-name" name="name" type="text" maxlength="120" required
+           placeholder="e.g. October order review">
+    <label for="task-file">Excel workbook</label>
+    <div class="file-picker">
+      <input id="task-file" name="file" type="file" accept=".xlsx" required
+             aria-describedby="file-help file-name">
+      <div class="file-picker-display" aria-hidden="true">
+        <span class="file-picker-button">Choose file</span>
+        <span id="file-name">No file selected</span>
+      </div>
+    </div>
+    <p id="file-help" class="small muted">.xlsx only, up to 10 MB. The first non-empty row is
+      treated as headers; 1–10,000 data rows below it. Required columns: order_id,
+      customer_name, customer_id, quantity, unit_price, amount, order_date.</p>
+    <p class="small"><a href="/orders-template.xlsx">Download order template</a>
+      · <a href="/demo-orders.xlsx">Download bundled demo orders</a></p>
+    <div class="upload-actions">
+      <button class="btn-primary" type="submit">Create &amp; validate</button>
+      <a class="back" href="/">Cancel</a>
+    </div>
+  </form>
+</details>
 {% endblock %}

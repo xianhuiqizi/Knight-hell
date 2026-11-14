@@ -47,7 +47,7 @@ SUGGESTION_STATUS_LABELS = {
 
 SUMMARY_SQL = """
 SELECT t.id, t.workflow, t.batch_size, t.status, t.source_file, t.source_location,
-       t.primary_target, t.secondary_target, t.owner_id, t.updated_at,
+       t.primary_target, t.secondary_target, t.owner_id, t.updated_at, t.task_mode,
        (SELECT COUNT(*) FROM source_records r
          WHERE r.task_id = t.id AND r.outcome = 'passed') AS passed,
        (SELECT COUNT(*) FROM source_records r
@@ -62,7 +62,17 @@ SELECT t.id, t.workflow, t.batch_size, t.status, t.source_file, t.source_locatio
         + (SELECT COUNT(*) FROM exceptions e
             WHERE e.task_id = t.id AND e.status IN ('accepted', 'manual'))) AS ready,
        (SELECT COUNT(*) FROM exceptions e
-         WHERE e.task_id = t.id AND e.status = 'skipped') AS skipped
+         WHERE e.task_id = t.id AND e.status = 'skipped') AS skipped,
+       (SELECT COUNT(*) FROM normalization_files nf
+         WHERE nf.task_id = t.id) AS source_files,
+       (SELECT status FROM normalization_batches nb
+         WHERE nb.task_id = t.id) AS normalize_status,
+       (SELECT raw_records FROM normalization_batches nb
+         WHERE nb.task_id = t.id) AS normalize_raw,
+       (SELECT normalized_records FROM normalization_batches nb
+         WHERE nb.task_id = t.id) AS normalize_records,
+       (SELECT issue_count FROM normalization_batches nb
+         WHERE nb.task_id = t.id) AS normalize_issues
 FROM tasks t
 """
 
@@ -80,9 +90,24 @@ def _visibility(user: User, task_id: str | None = None) -> tuple[str, list]:
     return where, params
 
 
+NORMALIZE_STATUS_LABELS = {
+    "uploaded": "Ready to clean",
+    "running": "Cleaning in progress",
+    "needs_review": "Needs review",
+    "complete": "Cleaned",
+    "canceled": "Cleaning canceled",
+    "failed": "Cleaning failed",
+}
+
+
 def _decorate_task(row: dict) -> dict:
     task = dict(row)
-    task["status_label"] = TASK_STATUS_LABELS.get(task["status"], task["status"])
+    if task.get("task_mode") == "normalize" and task.get("normalize_status"):
+        task["status_label"] = NORMALIZE_STATUS_LABELS.get(
+            task["normalize_status"], task["normalize_status"]
+        )
+    else:
+        task["status_label"] = TASK_STATUS_LABELS.get(task["status"], task["status"])
     return task
 
 
@@ -215,6 +240,21 @@ def task_detail(
 ):
     if user is None:
         return RedirectResponse("/login", status_code=303)
+    mode_rows = db.query(
+        "SELECT t.task_mode FROM tasks t WHERE t.id = ?"
+        + (" AND t.owner_id = ?" if user.role is not Role.ADMIN else ""),
+        (task_id, user.id) if user.role is not Role.ADMIN else (task_id,),
+    )
+    if not mode_rows:
+        raise HTTPException(status_code=404, detail="task not found")
+    if mode_rows[0]["task_mode"] == "normalize":
+        # Local import keeps the legacy task route independent of the new job.
+        from flowremote.api.routes.normalization import normalize_page_context
+
+        context = normalize_page_context(db, user, task_id)
+        if context is None:
+            raise HTTPException(status_code=404, detail="task not found")
+        return render(request, "normalize_task.html", context)
     context = load_task_page(db, user, task_id, page)
     if context is None:
         raise HTTPException(status_code=404, detail="task not found")

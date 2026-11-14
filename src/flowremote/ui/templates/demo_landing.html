@@ -2,36 +2,39 @@
 {% block title %}FlowRemote guided demo{% endblock %}
 {% block content %}
 <section class="demo-hero" data-guide-section="demo-welcome">
-  <p class="eyebrow">Interactive product demo</p>
-  <h1>AI suggestions. Human decisions. Auditable RPA.</h1>
-  <p class="sub">Create an account to configure your own AI-RPA workspace, or use the
-    seeded operator account for a quick tour.</p>
+  <p class="eyebrow">ENT207TC Demo Day · 18 November 2026</p>
+  <h1>Many files in. One clean dataset out.</h1>
+  <p class="sub">FlowRemote detects six different order-file formats, normalizes units and dates,
+    merges duplicates, shows exactly what needs a human decision and exports an auditable
+    three-sheet workbook.</p>
   <div class="demo-actions">
-    <a class="btn-primary" href="/signup">Create account</a>
-    <a class="btn-ghost" href="/login">Sign in</a>
+    <form method="post" action="/demo/enter" class="inline">
+      <button class="btn-primary" type="submit">Start the 6-minute demo</button>
+    </form>
+    <a class="btn-ghost" href="/login">Sign in with another account</a>
   </div>
-  <form method="post" action="/login" class="demo-quick-login">
-    <input type="hidden" name="email" value="alex.morgan@example.com">
-    <input type="hidden" name="password" value="123456">
-    <button class="btn-ghost" type="submit">Quick demo login</button>
-  </form>
+  <p class="small muted demo-quick-login">The demo account is pre-seeded. No registration needed.</p>
 </section>
 
 <div class="demo-feature-grid">
   <article class="panel">
-    <p class="eyebrow">Review</p>
-    <h2>Grounded AI advice</h2>
-    <p class="muted">Suggestions include evidence, confidence and validation.</p>
+    <p class="eyebrow">01 · Detect</p>
+    <h2>Six formats, one batch</h2>
+    <p class="muted">Header offsets, aliases, CSV, second sheets, shuffled columns and extra fields.</p>
   </article>
   <article class="panel">
-    <p class="eyebrow">Control</p>
-    <h2>Human approval</h2>
-    <p class="muted">AI never approves, skips or executes data on its own.</p>
+    <p class="eyebrow">02 · Normalize</p>
+    <h2>Explain every conversion</h2>
+    <p class="muted">Thousand CNY to CNY, boxes to pieces, mixed dates to ISO — with evidence.</p>
   </article>
   <article class="panel">
-    <p class="eyebrow">Evidence</p>
-    <h2>Audit and local cache</h2>
-    <p class="muted">Append-only events, offline review and revision-safe sync.</p>
+    <p class="eyebrow">03 · Prove</p>
+    <h2>Clean file + audit trail</h2>
+    <p class="muted">A three-sheet Excel result and an append-only timeline of every stage.</p>
   </article>
 </div>
+
+<p class="small muted center-note">
+  <a href="/signup">Create an account</a> to start from an empty workspace.
+</p>
 {% endblock %}

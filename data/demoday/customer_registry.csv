@@ -1,0 +1,9 @@
+customer_id,customer_name,region,tier
+C-2101,Aurora Retail,North,standard
+C-2102,Blue Harbor Foods,South,priority
+C-2103,Cedar & Co.,East,standard
+C-2104,Delta Works,West,priority
+C-2105,Evergreen Supply,North,standard
+C-2106,Fjord Analytics,South,priority
+C-2107,Greenfield Market,East,standard
+C-2108,Harborline Studio,West,priority

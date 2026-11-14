@@ -1,0 +1,29 @@
+Sales Region,Total,Order No.,Priority,Customer Code,Customer,Reviewer Note,Qty,Unit,Order Date,Unit Price
+North,588.00,ORD-3001,Priority,C-2101,Aurora Retail,,24,件,2026/09/01,24.50
+South,684.00,ORD-3002,Normal,C-2102,Blue Harbor Foods,,36,件,2026/09/06,19.00
+East,498.00,ORD-3003,Normal,C-2103,Cedar & Co.,,12,件,2026/09/11,41.50
+North,1854.00,ORD-3005,Normal,C-2105,Evergreen Supply,,60,件,2026/09/21,30.90
+South,662.40,ORD-3006,Normal,C-2106,Fjord Analytics,,24,件,2026/09/26,27.60
+East,491.40,ORD-3007,Priority,C-2107,Greenfield Market,,36,件,2026/09/03,13.65
+North,606.00,ORD-3009,Normal,C-2101,Aurora Retail,,24,件,2026/09/13,25.25
+South,702.00,ORD-3010,Priority,C-2102,Blue Harbor Foods,,36,件,2026/09/18,19.50
+East,504.00,ORD-3011,Normal,C-2103,Cedar & Co.,,12,件,2026/09/23,42.00
+West,729.60,ORD-3012,Normal,C-2104,Delta Works,,48,件,2026/09/28,15.20
+North,1854.00,ORD-3013,Priority,C-2105,Evergreen Supply,,60,件,2026/09/05,30.90
+South,662.40,ORD-3014,Normal,C-2106,Fjord Analytics,,24,件,2026/09/10,27.60
+East,446.40,ORD-3015,Normal,C-2107,Greenfield Market,,36,件,2026/09/15,12.40
+West,663.00,ORD-3016,Priority,C-2108,Harborline Studio,,12,件,2026/09/20,55.25
+North,576.00,ORD-3017,Normal,C-2101,Aurora Retail,,24,件,2026/09/25,24.00
+South,675.00,ORD-3018,Normal,C-2102,Blue Harbor Foods,,36,件,2026/09/02,18.75
+East,507.00,ORD-3019,Priority,C-2103,Cedar & Co.,,12,件,2026/09/07,42.25
+North,1854.00,ORD-3021,Normal,C-2105,Evergreen Supply,,60,件,2026/09/17,30.90
+South,662.40,ORD-3022,Priority,C-2106,Fjord Analytics,,24,件,2026/09/22,27.60
+West,660.00,ORD-3024,Normal,C-2108,Harborline Studio,,12,件,2026/09/04,55.00
+North,588.00,ORD-3025,Priority,C-2101,Aurora Retail,,24,件,2026/09/09,24.50
+South,675.00,ORD-3026,Normal,C-2102,Blue Harbor Foods,,36,件,2026/09/14,18.75
+East,498.00,ORD-3027,Normal,C-2103,Cedar & Co.,,12,件,2026/09/19,41.50
+West,765.60,ORD-3028,Priority,C-2104,Delta Works,,48,件,2026/09/24,15.95
+North,1929.00,ORD-3029,Normal,C-2105,Evergreen Supply,,60,件,2026/09/01,32.15
+East,446.40,ORD-3031,Priority,C-2107,Greenfield Market,,36,件,2026/09/11,12.40
+West,669.00,ORD-3032,Normal,C-2108,Harborline Studio,,12,件,2026/09/16,55.75
+North,588.00,ORD-3033,Normal,C-2101,Aurora Retail,,24,件,2026/09/21,24.50

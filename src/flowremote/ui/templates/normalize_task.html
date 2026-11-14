@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ task.workflow }} - FlowRemote{% endblock %}
+
+{% macro file_table(files) %}
+<div class="table-wrap file-table">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>File</th><th>Format / sheet</th><th>Header</th><th>Rows</th>
+        <th>Fields</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for file in files %}
+      <tr>
+        <td>
+          <strong>{{ file.filename }}</strong>
+          <div class="small muted">{{ file.size_label }}</div>
+        </td>
+        <td class="small">
+          {% if file.file_type %}{{ file.file_type|upper }}{% else %}—{% endif %}
+          {% if file.worksheet %}<div class="muted">{{ file.worksheet }}</div>{% endif %}
+        </td>
+        <td class="mono small">{{ file.header_row or "—" }}</td>
+        <td class="mono">{{ file.row_count if file.row_count is not none else "—" }}</td>
+        <td class="mono">{{ file.field_count if file.field_count is not none else "—" }}</td>
+        <td>
+          <span class="badge badge-{{ 'accepted' if file.status == 'normalized' else 'unresolved' if file.status == 'attention' else 'manual' }}"
+                id="file-status-{{ file.id }}">{{ file.status_label }}</span>
+          {% if file.error %}<p class="small issue-reason">{{ file.error }}</p>{% endif %}
+          {% if file.mapping and file.mapping.columns %}
+          <details class="mapping-details">
+            <summary>Mapping evidence</summary>
+            <ul class="mapping-list">
+              {% for column in file.mapping.columns %}
+              <li>
+                <span class="mono">{{ column.header }}</span>
+                <span class="muted">→</span>
+                <strong>{{ column.field }}</strong>
+                <span class="small muted">{{ (column.confidence * 100)|round|int }}% ·
+                  {{ column.method }}</span>
+                <div class="small muted">{{ column.evidence|join(" · ") }}</div>
+              </li>
+              {% endfor %}
+            </ul>
+            {% if file.mapping.price_multiplier and file.mapping.price_multiplier > 1 %}
+            <p class="small muted">Price unit: values multiplied by
+              {{ file.mapping.price_multiplier }} before validation.</p>
+            {% endif %}
+          </details>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{% block content %}
+<a class="back" href="/">&larr; All tasks</a>
+<div class="page-head page-head-actions">
+  <div>
+    <p class="eyebrow">{{ task.id }} · {{ state.status_label }}</p>
+    <h1>{{ task.workflow }}</h1>
+    <p class="sub">{{ files|length }} source files · {{ state.recognized }}/{{ files|length }}
+      recognized · rules-only normalization · owner {{ user.name }}</p>
+  </div>
+  {% if can_download %}
+  <a class="btn-gate" href="/tasks/{{ task.id }}/normalize/download">Download cleaned .xlsx</a>
+  {% endif %}
+</div>
+
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if request.query_params.get('uploaded') %}
+<p class="notice success">{{ files|length }} files uploaded · {{ state.recognized }}/{{ files|length }}
+  formats recognized. Review the source list, then press <strong>Start cleaning</strong>.</p>
+{% endif %}
+
+{% if state.status == 'uploaded' or state.status == 'canceled' or state.status == 'failed' %}
+<section class="panel start-panel" data-guide-section="normalize-start">
+  <div class="upload-card-head">
+    <div>
+      <p class="eyebrow">Step 2 · ready</p>
+      <h2>Start the cleanup</h2>
+    </div>
+    <span class="badge">{{ state.recognized }}/{{ files|length }} recognized</span>
+  </div>
+  <p class="muted">Formats are detected and columns mapped. Start cleaning to run unit conversion,
+    date normalization and cross-file merge as a visible, cancellable job. No external service
+    is called.</p>
+  {% if can_start %}
+  <form method="post" action="/tasks/{{ task.id }}/normalize/start" class="approval-actions">
+    <button class="btn-primary" type="submit">Start cleaning</button>
+  </form>
+  {% endif %}
+  <p class="small muted">Six recognized files are expected in the Demo Day pack. A file that
+    cannot be read becomes one item to confirm; the other files still finish.</p>
+</section>
+{{ file_table(files) }}
+
+{% elif state.status == 'running' %}
+<section class="progress-panel" id="normalize-progress"
+         data-guide-section="normalize-progress"
+         data-task="{{ task.id }}" data-status="{{ state.status }}">
+  <div class="progress-head">
+    <div>
+      <p class="eyebrow">Step 3 · processing</p>
+      <h2 id="normalize-stage-label">{{ state.stage_label }}</h2>
+    </div>
+    <span class="badge badge-state" id="normalize-percent">{{ state.percent }}%</span>
+  </div>
+  <div class="progress-track"><div class="progress-bar" id="normalize-bar"
+       style="width: {{ state.percent }}%"></div></div>
+  <dl class="progress-meta">
+    <div><dt>Current file</dt><dd id="normalize-current">{{ state.current_file or "—" }}</dd></div>
+    <div><dt>Processed / total</dt>
+      <dd><span id="normalize-done">{{ state.phase_done }}</span> /
+        <span>{{ state.total_files }}</span> files</dd></div>
+    <div><dt>Elapsed</dt><dd id="normalize-elapsed">{{ state.elapsed_label }}</dd></div>
+  </dl>
+  <p class="small muted" id="normalize-stage-note">Stage {{ state.stage_index + 1 }} of
+    {{ state.stage_total }} · results are saved after every step, so this page can be refreshed
+    safely.</p>
+  <p class="ai-settings-status" id="normalize-error" role="status"></p>
+  <form method="post" action="/tasks/{{ task.id }}/normalize/cancel" class="approval-actions">
+    <button class="btn-ghost" type="submit">Cancel run</button>
+    <span class="small muted">Cancel removes every partial normalized row. Uploaded files stay.</span>
+  </form>
+  <noscript>
+    <form method="post" action="/tasks/{{ task.id }}/normalize/tick" class="approval-actions">
+      <button class="btn-gate" type="submit">Run one step (JavaScript off)</button>
+    </form>
+  </noscript>
+</section>
+{{ file_table(files) }}
+
+{% else %}
+<section class="result-banner {{ 'result-ok' if state.status == 'complete' else 'result-bad' }}"
+         data-guide-section="normalize-summary">
+  <strong>{{ "✓" if state.status == "complete" else "!" }}</strong>
+  <span>
+    {% if state.status == 'complete' %}
+    Normalization finished. All {{ state.normalized_records }} merged records are ready to download.
+    {% else %}
+    Normalization finished with <strong>{{ state.unresolved }} item(s) to confirm</strong>.
+    The clean result can be downloaded now; the confirmation queue is recorded in the
+    <code>unresolved</code> sheet and will be editable in the review step.
+    {% endif %}
+  </span>
+</section>
+
+<div class="stats stats-wide summary-stats" data-guide-section="normalize-summary-stats">
+  <div><span class="n">{{ files|length }}</span><span class="l">files</span></div>
+  <div><span class="n">{{ state.raw_records }}</span><span class="l">source rows</span></div>
+  <div><span class="n">{{ state.normalized_records }}</span><span class="l">records</span></div>
+  <div><span class="n">{{ state.auto_fixed }}</span><span class="l">auto-fixed</span></div>
+  <div><span class="n">0</span><span class="l">human</span></div>
+  <div><span class="n">{{ state.unresolved }}</span><span class="l">to confirm</span></div>
+  <div><span class="n">0</span><span class="l">skipped</span></div>
+  <div><span class="n">{{ state.elapsed_label }}</span><span class="l">duration</span></div>
+</div>
+<p class="small muted summary-engine">Engine: deterministic rules · normalize-v1 · no external AI call.
+  Human and skipped counts stay zero until the editable confirmation queue is connected.</p>
+
+<div class="approval-actions">
+  {% if can_download %}
+  <a class="btn-primary as-button" href="/tasks/{{ task.id }}/normalize/download">
+    Download cleaned .xlsx
+  </a>
+  <span class="small muted">Three sheets: normalized · changes · unresolved</span>
+  {% endif %}
+</div>
+
+<h2 class="section">Source files</h2>
+{{ file_table(files) }}
+
+<h2 class="section">Needs your confirmation
+  <span class="badge badge-unresolved">{{ state.unresolved }}</span></h2>
+{% if issues %}
+<div class="issue-grid" data-guide-section="normalize-review">
+  {% for issue in issues %}
+  <article class="panel issue-card" id="issue-{{ issue.id }}">
+    <div class="issue-card-head">
+      <span class="badge badge-unresolved">{{ issue.type_label }}</span>
+      <span class="small muted mono">{{ issue.order_id or "file-level" }}</span>
+    </div>
+    <p class="small muted mono">{{ issue.source_file or "—" }}
+      {% if issue.source_row %}· row {{ issue.source_row }}{% endif %}
+      {% if issue.field %}· {{ issue.field }}{% endif %}</p>
+    <dl class="issue-values">
+      <div><dt>Original</dt><dd>{{ issue.original_value or "(blank)" }}</dd></div>
+      {% if issue.suggested_value %}
+      <div><dt>Suggested</dt><dd>{{ issue.suggested_value }}
+        {% if issue.confidence is not none %}· {{ (issue.confidence * 100)|round|int }}%{% endif %}</dd></div>
+      {% endif %}
+    </dl>
+    <p class="small">{{ issue.reason }}</p>
+    <span class="badge">Pending confirmation</span>
+  </article>
+  {% endfor %}
+</div>
+<p class="note">This increment records the six confirmation items and includes them in the
+  download. The editable confirmation cards are added in the next increment (Phase C/D);
+  every item remains unresolved until a person acts on it.</p>
+{% else %}
+<p class="muted">No confirmation items. The batch is complete.</p>
+{% endif %}
+
+<h2 class="section">Activity timeline</h2>
+{% if events %}
+<ul class="log" data-guide-section="normalize-audit">
+  {% for event in events %}
+  <li class="log-item">
+    <span class="log-time">{{ event.occurred_at }}</span>
+    <span class="badge">{{ event.stage_label }}</span>
+    <span class="log-text">{{ event.description }}</span>
+    <span class="log-actor">{{ event.actor }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">No activity recorded for this task.</p>
+{% endif %}
+
+<div class="approval-actions">
+  <a class="btn-gate" href="/">Back to tasks</a>
+  <a class="btn-gate" href="/tasks/{{ task.id }}/activity.json">Export activity JSON</a>
+</div>
+{% endif %}
+{% endblock %}

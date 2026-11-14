@@ -907,6 +907,8 @@ a { color: var(--accent-2); }
 }
 
 .demo-quick-login { margin-top: 16px; }
+.demo-actions form { margin: 0; }
+.center-note { max-width: 820px; margin: 16px auto 0; text-align: center; }
 
 .demo-feature-grid {
   display: grid;
@@ -920,4 +922,224 @@ a { color: var(--accent-2); }
   .demo-actions { align-items: stretch; flex-direction: column; }
   .demo-actions .btn-primary,
   .demo-actions .btn-ghost { width: 100%; }
+}
+
+/* Multi-source cleanup (Demo Day 2026). */
+.normalize-upload {
+  max-width: 820px;
+}
+
+.upload-card-head,
+.progress-head,
+.issue-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.upload-card-head h2,
+.progress-head h2 {
+  margin: 2px 0 10px;
+  font-size: 20px;
+}
+
+.file-summary {
+  min-height: 1.2em;
+  margin: 2px 0 8px;
+  color: var(--muted);
+}
+
+.selected-file-list {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.selected-file-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #f8fafc;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.compact-alert {
+  margin: 0 0 16px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.legacy-upload {
+  max-width: 820px;
+  margin-top: 28px;
+}
+
+.legacy-upload > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legacy-upload .upload-card {
+  margin-top: 14px;
+}
+
+.start-panel {
+  max-width: 820px;
+}
+
+.start-panel .approval-actions {
+  margin-top: 14px;
+}
+
+.progress-panel {
+  max-width: 820px;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 8px 26px rgba(28, 45, 72, 0.055);
+}
+
+.progress-head .badge {
+  font-size: 13px;
+}
+
+.progress-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 16px 0 10px;
+}
+
+.progress-meta div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.progress-meta dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.progress-meta dd {
+  margin: 3px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.file-table {
+  margin-top: 16px;
+}
+
+.mapping-details {
+  margin-top: 8px;
+  min-width: 210px;
+}
+
+.mapping-details summary {
+  cursor: pointer;
+  color: var(--accent-2);
+  font-size: 12px;
+}
+
+.mapping-list {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mapping-list li {
+  padding-left: 8px;
+  border-left: 2px solid #cfe5df;
+}
+
+.summary-stats {
+  max-width: 820px;
+}
+
+.summary-stats .n {
+  font-size: 20px;
+}
+
+.summary-engine {
+  max-width: 820px;
+  margin: 8px 0 0;
+}
+
+.issue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+.issue-card {
+  margin: 0;
+  border-left: 4px solid #e2b34d;
+}
+
+.issue-card-head {
+  align-items: center;
+}
+
+.issue-values {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.issue-values div {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 8px;
+}
+
+.issue-values dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.issue-values dd {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.btn-primary.as-button {
+  display: inline-flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+}
+
+.btn-primary.as-button:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .upload-card-head,
+  .progress-head { flex-direction: column; }
+  .progress-meta { grid-template-columns: 1fr; }
+  .issue-grid { grid-template-columns: 1fr; }
+  .page-head-actions > .btn-gate { width: 100%; text-align: center; }
+  .normalize-upload { padding: 18px; }
+  .progress-panel { padding: 16px; }
 }

@@ -5,7 +5,7 @@ combines Excel ingestion, deterministic order validation, grounded AI correction
 suggestions, human review and approval, simulated RPA execution, audit logging,
 local-first browser caching and portable local/enterprise database storage.
 
-The current version is **0.5.0**. It is a complete promotional and course
+The current version is **0.6.0**. It is a complete promotional and course
 demonstration application, but it is **not yet a production enterprise AI-RPA
 product** because the RPA targets remain simulated and several production
 security and operations features are still missing.
@@ -29,6 +29,7 @@ security and operations features are still missing.
 | Registration onboarding and AI-RPA management | Implemented |
 | Light theme and section-by-section guided flow | Implemented |
 | Portable Windows demo executable | Implemented and smoke-tested |
+| Multi-source `.xlsx`/`.csv` normalization and 3-sheet export | Implemented (Demo Day Phase 1) |
 | Real OA/BI/Excel connectors | Not implemented |
 | Autonomous RPA Worker | Not implemented; execution currently advances through web requests |
 | Retry / Resume / Cancel after partial execution | Not implemented |
@@ -309,7 +310,36 @@ section:
 The guide covers demo entry, registration, AI-RPA onboarding, upload,
 validation, exception review, approval, execution, results, audit and settings.
 
-### 13. Portable Windows executable
+### 13. Multi-source cleanup (ENT207TC Demo Day)
+
+A normalizer runs alongside the existing `orders-v1` path. It accepts up to six
+`.xlsx`/`.csv` files (10 MB each, 20 MB combined), detects the best worksheet and
+header row, maps English/Chinese aliases with confidence and evidence, converts
+thousand-CNY prices and boxes, normalizes ISO / DD-MM-YYYY / Excel-serial dates,
+merges duplicate `order_id`s, and records conflicts instead of overwriting them.
+
+- Rule version: `normalize-v1`; no external AI call is required.
+- Result contract: `order_id`, `customer_name`, `customer_id`, `quantity`, `unit`,
+  `unit_price`, `amount`, `order_date`, `source_file`, `source_row`.
+- Recognition and mapping happen at upload; the visible cleaning run normalizes
+  each file and merges the batch with a 300–500 ms progress refresh, cancel and
+  idempotent restart.
+- The result is `FlowRemote_normalized_YYYYMMDD_HHMM.xlsx` with **normalized**,
+  **changes** (rule/AI/human provenance) and **unresolved** sheets.
+- The Demo Day pack in `data/demoday/` has six deterministic files, 174 source
+  rows, 36 merged records and exactly six confirmation items: two missing values,
+  two unit conflicts and two cross-file conflicts. All names are synthetic.
+- Build the pack, account and fallback batch with:
+
+```powershell
+.\.venv\Scripts\python.exe src\flowremote\devtools\seed_demoday.py --reset
+```
+
+The multi-source **editable** confirmation queue and the visible AI connection
+test are the next increment; this phase records the six items, exports them and
+keeps the existing review/AI layers intact.
+
+### 14. Portable Windows executable
 
 Download the current build:
 
@@ -504,6 +534,12 @@ Important invariants:
 | GET | `/tasks/{id}/execution.json` |
 | GET | `/tasks/{id}/results` |
 | GET | `/tasks/{id}/activity.json` |
+| POST | `/tasks/normalize` | Create a multi-source cleanup batch |
+| POST | `/tasks/{id}/normalize/start` | Start or resume the cleaning run |
+| POST | `/tasks/{id}/normalize/tick` | Advance one deterministic progress step |
+| GET | `/tasks/{id}/normalize/status` | Progress snapshot |
+| POST | `/tasks/{id}/normalize/cancel` | Cancel and remove derived rows |
+| GET | `/tasks/{id}/normalize/download` | Three-sheet cleaned workbook |
 
 ### Local-first synchronization
 
@@ -525,7 +561,10 @@ cd E:\knight_hell
 # Install or update dependencies
 uv sync
 
-# Rebuild demonstration data
+# Rebuild the Demo Day six-file pack, account and fallback batch
+.\.venv\Scripts\python.exe src\flowremote\devtools\seed_demoday.py --reset
+
+# Optional: rebuild the original single-workbook orders-v1 demo
 .\.venv\Scripts\python.exe src\flowremote\devtools\seed.py --reset --verify
 
 # Start the web application
@@ -549,6 +588,7 @@ Run tests:
 
 | Email | Password | Role |
 | --- | --- | --- |
+| `demo@flowremote.dev` | `DemoDay2026!` | operator (Demo Day) |
 | `alex.morgan@example.com` | `123456` | operator |
 | `admin@example.com` | `123456` | admin |
 
@@ -582,12 +622,13 @@ in-app **AI settings** window.
 
 Current repository status:
 
-- **234 tests passed**
+- **272 tests passed**
 - **11 subtests passed**
 - Python compilation passed
 - Browser JavaScript syntax passed
-- All migrations `0001` through `0007` applied successfully
+- All migrations `0001` through `0009` applied successfully
 - Seed data reproduces 100 input / 88 passed / 12 flagged
+- Demo Day pack reproduces 6 files / 174 rows / 36 merged records / 6 issues
 - Feature 3 automated demo passes all nine checks
 
 Coverage includes:
@@ -608,6 +649,8 @@ Coverage includes:
 - Local and enterprise storage selection.
 - Registration onboarding and AI-RPA usage controls.
 - Demo landing page, guide assets, Light theme assets and EXE smoke checks.
+- Multi-source detection, alias mapping with evidence, unit/date normalization,
+  duplicate merge, cross-file conflicts, progress/cancel/restart and 3-sheet export.
 
 ---
 
@@ -716,4 +759,7 @@ prototype to a pilot-ready AI-RPA control plane.
 - `docs/p7-local-sync.md` — local-first cache, Outbox and PWA design.
 - `docs/flowremote-layered-architecture.html` — visual layered architecture.
 - `demo/README.md` — demo commands and walkthrough.
+- `docs/demoday-gap-analysis.md` — current state → gap audit.
+- `docs/demoday-progress-and-next-steps.md` — phase-1 status, sample DB and detailed C/D backlog.
+- `docs/demoday-demo-runbook.md` — 60-second prep, 6-minute script and fallbacks.
 - `prompts/prompt-log.md` — AI-use and implementation prompt log.
