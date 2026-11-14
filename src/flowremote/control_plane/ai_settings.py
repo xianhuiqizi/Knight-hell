@@ -167,3 +167,307 @@ def save_settings(
 def configured_api_key(db: Database, cipher: AISettingCipher, user_id: str) -> str | None:
     row = _row(db, user_id)
     return cipher.decrypt(row.get("api_key_encrypted")) if row else None
+
+
+@dataclass(frozen=True)
+class ConnectionTestResult:
+    ok: bool
+    provider: str
+    model: str | None
+    latency_ms: int
+    message: str
+
+    def as_dict(self) -> dict:
+        return {
+            "ok": self.ok,
+            "provider": self.provider,
+            "model": self.model,
+            "latency_ms": self.latency_ms,
+            "message": self.message,
+        }
+
+
+def check_connection(
+    *,
+    provider: str,
+    base_url: str,
+    model: str,
+    api_key: str,
+) -> ConnectionTestResult:
+    """Test AI provider connection with 3s timeout.
+    
+    Returns connection status, model name, latency and actionable message.
+    Never raises; all errors are mapped to failed results.
+    """
+    import time
+    
+    provider = provider.strip().lower()
+    
+    # Offline provider - instant success
+    if provider == "offline":
+        return ConnectionTestResult(
+            ok=True,
+            provider="offline",
+            model="grounded-rules-v1",
+            latency_ms=0,
+            message="Offline Demo AI ready (rules only, no network).",
+        )
+    
+    # OpenAI-compatible provider
+    if provider not in {"openai", "openai_compatible"}:
+        return ConnectionTestResult(
+            ok=False,
+            provider=provider,
+            model=None,
+            latency_ms=0,
+            message="Unknown provider. Choose offline or openai_compatible.",
+        )
+    
+    # Validate inputs
+    model = model.strip()
+    api_key = api_key.strip()
+    
+    if not model:
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=0,
+            message="Model name is required.",
+        )
+    
+    if not api_key:
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=0,
+            message="API key is required.",
+        )
+    
+    # Test connection with 3s timeout
+    try:
+        import httpx
+    except ImportError:
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=0,
+            message="HTTP client not available.",
+        )
+    
+    start_time = time.perf_counter()
+    
+    try:
+        # Clean and validate base URL
+        if base_url:
+            test_base_url = _clean_base_url(base_url)
+        else:
+            test_base_url = "https://api.openai.com/v1"
+        
+        # Try GET /models endpoint first (cheap and standard)
+        models_url = f"{test_base_url}/models"
+        
+        with httpx.Client(timeout=3.0) as client:
+            response = client.get(
+                models_url,
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            
+            if response.status_code == 200:
+                # Try to extract model info from response
+                try:
+                    data = response.json()
+                    models_list = data.get("data", [])
+                    model_ids = [m.get("id") for m in models_list if isinstance(m, dict)]
+                    
+                    # Check if requested model exists
+                    if model in model_ids:
+                        return ConnectionTestResult(
+                            ok=True,
+                            provider="openai_compatible",
+                            model=model,
+                            latency_ms=elapsed_ms,
+                            message=f"Connected successfully · {len(model_ids)} models available.",
+                        )
+                    else:
+                        # Model not in list, but connection works
+                        return ConnectionTestResult(
+                            ok=True,
+                            provider="openai_compatible",
+                            model=model,
+                            latency_ms=elapsed_ms,
+                            message=f"Connected · model '{model}' not listed but may be available.",
+                        )
+                except Exception:
+                    # Response is OK but not parseable - assume success
+                    return ConnectionTestResult(
+                        ok=True,
+                        provider="openai_compatible",
+                        model=model,
+                        latency_ms=elapsed_ms,
+                        message="Connected successfully.",
+                    )
+            
+            elif response.status_code == 401:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message="Invalid API key. Check your credentials.",
+                )
+            
+            elif response.status_code == 403:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message="Access forbidden. Check your API key permissions.",
+                )
+            
+            elif response.status_code == 404:
+                # /models endpoint not supported, try minimal completion request
+                return _test_with_completion(test_base_url, model, api_key, start_time)
+            
+            elif response.status_code == 429:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message="Rate limit exceeded. Try again later or check your quota.",
+                )
+            
+            else:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message=f"Unexpected response: HTTP {response.status_code}.",
+                )
+    
+    except httpx.TimeoutException:
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=elapsed_ms,
+            message="Connection timeout. Check your network or base URL.",
+        )
+    
+    except httpx.ConnectError:
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=elapsed_ms,
+            message="Cannot reach server. Check your network connection.",
+        )
+    
+    except AISettingsError as exc:
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=0,
+            message=str(exc),
+        )
+    
+    except Exception as exc:
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=elapsed_ms,
+            message=f"Connection error: {type(exc).__name__}",
+        )
+
+
+def _test_with_completion(base_url: str, model: str, api_key: str, start_time: float) -> ConnectionTestResult:
+    """Fallback: test with minimal completion request when /models is not available."""
+    import httpx
+    import time
+    
+    try:
+        completion_url = f"{base_url}/chat/completions"
+        
+        with httpx.Client(timeout=3.0) as client:
+            response = client.post(
+                completion_url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": "test"}],
+                    "max_tokens": 1,
+                },
+            )
+            
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            
+            if response.status_code == 200:
+                return ConnectionTestResult(
+                    ok=True,
+                    provider="openai_compatible",
+                    model=model,
+                    latency_ms=elapsed_ms,
+                    message="Connected successfully.",
+                )
+            
+            elif response.status_code == 401:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message="Invalid API key. Check your credentials.",
+                )
+            
+            elif response.status_code == 404:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message=f"Model '{model}' not found. Check the model name.",
+                )
+            
+            elif response.status_code == 429:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message="Rate limit exceeded. Try again later.",
+                )
+            
+            else:
+                return ConnectionTestResult(
+                    ok=False,
+                    provider="openai_compatible",
+                    model=None,
+                    latency_ms=elapsed_ms,
+                    message=f"Unexpected response: HTTP {response.status_code}.",
+                )
+    
+    except Exception:
+        # If completion also fails, return generic error
+        elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+        return ConnectionTestResult(
+            ok=False,
+            provider="openai_compatible",
+            model=None,
+            latency_ms=elapsed_ms,
+            message="Connection test failed. Check base URL and model name.",
+        )

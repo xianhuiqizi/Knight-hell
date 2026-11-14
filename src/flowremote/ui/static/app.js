@@ -352,3 +352,287 @@ if (aiDialog) {
     }
   });
 }
+
+// AI connection test (Phase C2) - full page version
+const testForm = document.getElementById("connection-test-form");
+if (testForm) {
+  const testBtn = document.getElementById("test-connection-btn");
+  const btnText = testBtn?.querySelector(".btn-text");
+  const btnSpinner = testBtn?.querySelector(".btn-spinner");
+  const resultBox = document.getElementById("connection-test-result");
+  const resultStatus = resultBox?.querySelector(".result-status");
+  const resultMessage = resultBox?.querySelector(".result-message");
+  const offlineFallback = document.getElementById("use-offline-fallback");
+  const providerSelect = document.getElementById("test-provider");
+  const modelInput = document.getElementById("test-model");
+  const baseUrlInput = document.getElementById("test-base-url");
+  const apiKeyInput = document.getElementById("test-api-key");
+
+  let testTimeout = null;
+
+  const showResult = (ok, provider, model, latency, message) => {
+    resultBox.hidden = false;
+    resultBox.className = "connection-test-result";
+    resultBox.classList.add(ok ? "success" : "error");
+
+    if (ok) {
+      let statusText = `Connected · ${model}`;
+      if (latency > 0) statusText += ` · ${latency} ms`;
+      resultStatus.textContent = statusText;
+      resultMessage.textContent = message;
+      offlineFallback.hidden = true;
+    } else {
+      resultStatus.textContent = "Connection failed";
+      resultMessage.textContent = message;
+      // Show offline fallback for online provider failures
+      offlineFallback.hidden = provider === "offline";
+    }
+  };
+
+  const hideResult = () => {
+    resultBox.hidden = true;
+    offlineFallback.hidden = true;
+  };
+
+  const setTesting = (testing) => {
+    testBtn.disabled = testing;
+    btnText.hidden = testing;
+    btnSpinner.hidden = !testing;
+    
+    if (testing) {
+      // 3-second client-side timeout
+      testTimeout = setTimeout(() => {
+        showResult(false, "unknown", null, 0, "Test timed out after 3 seconds. Check your network.");
+        setTesting(false);
+      }, 3100);
+    } else {
+      if (testTimeout) {
+        clearTimeout(testTimeout);
+        testTimeout = null;
+      }
+    }
+  };
+
+  // Hide result when inputs change
+  [providerSelect, modelInput, baseUrlInput, apiKeyInput].forEach(input => {
+    input?.addEventListener("input", hideResult);
+  });
+
+  testForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    hideResult();
+    setTesting(true);
+
+    const formData = new FormData(testForm);
+    const data = {
+      provider: formData.get("provider") || "",
+      model: formData.get("model") || "",
+      base_url: formData.get("base_url") || "",
+      api_key: formData.get("api_key") || "",
+    };
+
+    try {
+      const response = await fetch("/settings/ai/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error("Test request failed");
+      }
+
+      const result = await response.json();
+      showResult(
+        result.ok,
+        result.provider,
+        result.model,
+        result.latency_ms,
+        result.message
+      );
+
+      // Clear the password field after test
+      if (apiKeyInput) {
+        apiKeyInput.value = "";
+      }
+    } catch (error) {
+      showResult(false, "unknown", null, 0, error.message || "Connection test failed. Check your network.");
+    } finally {
+      setTesting(false);
+    }
+  });
+
+  // Offline fallback button
+  offlineFallback?.addEventListener("click", () => {
+    providerSelect.value = "offline";
+    modelInput.value = "grounded-rules-v1";
+    baseUrlInput.value = "";
+    apiKeyInput.value = "";
+    hideResult();
+    // Show immediate success for offline
+    showResult(true, "offline", "grounded-rules-v1", 0, "Offline Demo AI ready (rules only, no network).");
+  });
+}
+
+// Normalization confirmation cards (Phase D)
+document.querySelectorAll('.confirmation-card').forEach(card => {
+  const issueId = card.dataset.issueId;
+  const issueType = card.dataset.issueType;
+  const form = card.querySelector('[data-card-form]');
+  const confirmBtn = card.querySelector('[data-confirm-btn]');
+  const skipBtn = card.querySelector('[data-skip-btn]');
+  const skipForm = card.querySelector('[data-skip-form]');
+  const skipConfirm = card.querySelector('[data-skip-confirm]');
+  const skipCancel = card.querySelector('[data-skip-cancel]');
+  const skipReason = card.querySelector('[data-skip-reason]');
+  const cardError = card.querySelector('[data-card-error]');
+  const cardResolved = card.querySelector('[data-card-resolved]');
+  const btnText = confirmBtn?.querySelector('.btn-text');
+  const btnSpinner = confirmBtn?.querySelector('.btn-spinner');
+  
+  const taskId = window.location.pathname.split('/')[2];
+  
+  const showError = (message) => {
+    if (cardError) {
+      cardError.textContent = message;
+      cardError.hidden = false;
+    }
+  };
+  
+  const hideError = () => {
+    if (cardError) {
+      cardError.hidden = true;
+    }
+  };
+  
+  const setLoading = (loading) => {
+    if (confirmBtn) confirmBtn.disabled = loading;
+    if (skipBtn) skipBtn.disabled = loading;
+    if (btnText) btnText.hidden = loading;
+    if (btnSpinner) btnSpinner.hidden = !loading;
+  };
+  
+  const markResolved = (action) => {
+    card.classList.add('resolved');
+    if (form) form.hidden = true;
+    if (skipForm) skipForm.hidden = true;
+    if (cardResolved) {
+      cardResolved.querySelector('.resolved-text').textContent = 
+        action === 'skip' ? 'Skipped' : 'Confirmed';
+      cardResolved.hidden = false;
+    }
+    updateCounts();
+  };
+  
+  const updateCounts = () => {
+    const unresolved = document.querySelectorAll('.confirmation-card:not(.resolved)').length;
+    const confirmed = document.querySelectorAll('.confirmation-card.resolved[data-action= confirm]').length;
+    const skipped = document.querySelectorAll('.confirmation-card.resolved[data-action=skip]').length;
+    
+    const unresolvedEl = document.getElementById('unresolved-count');
+    const confirmedEl = document.getElementById('confirmed-count');
+    const skippedEl = document.getElementById('skipped-count');
+    
+    if (unresolvedEl) unresolvedEl.textContent = unresolved;
+    if (confirmedEl) confirmedEl.textContent = confirmed;
+    if (skippedEl) skippedEl.textContent = skipped;
+  };
+  
+  // Confirm button
+  confirmBtn?.addEventListener('click', async () => {
+    hideError();
+    setLoading(true);
+    
+    const formData = new FormData(form);
+    const changes = {};
+    for (const [key, value] of formData.entries()) {
+      if (value.trim()) {
+        changes[key] = value.trim();
+      }
+    }
+    
+    const decisionId = DEC--;
+    
+    try {
+      const response = await fetch(/tasks//normalize/issues//confirm, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision_id: decisionId, changes }),
+      });
+      
+      const result = await response.json();
+      
+      if (!result.ok) {
+        showError(result.error || 'Confirmation failed');
+        return;
+      }
+      
+      card.dataset.action = 'confirm';
+      markResolved('confirm');
+      
+    } catch (error) {
+      showError(error.message || 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+  
+  // Skip button - show reason form
+  skipBtn?.addEventListener('click', () => {
+    if (form) form.hidden = true;
+    if (skipForm) skipForm.hidden = false;
+    hideError();
+  });
+  
+  // Skip cancel - hide reason form
+  skipCancel?.addEventListener('click', () => {
+    if (form) form.hidden = false;
+    if (skipForm) skipForm.hidden = true;
+    if (skipReason) skipReason.value = '';
+  });
+  
+  // Skip confirm
+  skipConfirm?.addEventListener('click', async () => {
+    const reason = skipReason?.value.trim();
+    
+    if (!reason || reason.length < 3) {
+      showError('Skip reason is required (at least 3 characters)');
+      return;
+    }
+    
+    hideError();
+    setLoading(true);
+    
+    const decisionId = DEC--;
+    
+    try {
+      const response = await fetch(/tasks//normalize/issues//skip, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision_id: decisionId, reason }),
+      });
+      
+      const result = await response.json();
+      
+      if (!result.ok) {
+        showError(result.error || 'Skip failed');
+        return;
+      }
+      
+      card.dataset.action = 'skip';
+      markResolved('skip');
+      
+    } catch (error) {
+      showError(error.message || 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+  
+  // Hide error when typing
+  form?.querySelectorAll('input, select, textarea').forEach(input => {
+    input.addEventListener('input', hideError);
+  });
+});

@@ -32,6 +32,11 @@ from flowremote.control_plane.normalization_jobs import (
     start_normalization,
     tick_normalization,
 )
+from flowremote.control_plane.normalization_review import (
+    ReviewError,
+    confirm_issue,
+    skip_issue,
+)
 
 router = APIRouter()
 SessionUser = Annotated[User | None, Depends(current_user)]
@@ -457,3 +462,117 @@ def normalization_json(
     if snapshot is None:
         raise HTTPException(status_code=404, detail="normalization batch not found")
     return JSONResponse(snapshot)
+
+
+@router.post("/tasks/{task_id}/normalize/issues/{issue_id}/confirm")
+async def confirm_normalization_issue(
+    task_id: str,
+    issue_id: str,
+    request: Request,
+    user: SessionUser,
+    db: RequestDatabase,
+):
+    """Confirm an issue with optional field edits and revalidation."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="sign in required")
+    _visible_or_404(db, user, task_id)
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid JSON")
+    
+    decision_id = data.get("decision_id", "")
+    changes = data.get("changes", {})
+    
+    if not decision_id:
+        raise HTTPException(status_code=400, detail="decision_id is required")
+    
+    if not isinstance(changes, dict):
+        raise HTTPException(status_code=400, detail="changes must be an object")
+    
+    try:
+        result = confirm_issue(
+            db,
+            task_id=task_id,
+            issue_id=issue_id,
+            decision_id=decision_id,
+            changes=changes,
+            user_id=user.id,
+            user_name=user.name,
+        )
+        
+        return JSONResponse({
+            "ok": True,
+            "issue_id": result.issue_id,
+            "action": result.action,
+            "resolved": result.resolved,
+            "message": result.message,
+        })
+    
+    except ReviewError as exc:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": str(exc),
+                "issue_id": issue_id,
+            },
+            status_code=400,
+        )
+
+
+@router.post("/tasks/{task_id}/normalize/issues/{issue_id}/skip")
+async def skip_normalization_issue(
+    task_id: str,
+    issue_id: str,
+    request: Request,
+    user: SessionUser,
+    db: RequestDatabase,
+):
+    """Skip an issue with a required reason."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="sign in required")
+    _visible_or_404(db, user, task_id)
+    
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid JSON")
+    
+    decision_id = data.get("decision_id", "")
+    reason = data.get("reason", "")
+    
+    if not decision_id:
+        raise HTTPException(status_code=400, detail="decision_id is required")
+    
+    if not reason or len(reason.strip()) < 3:
+        raise HTTPException(status_code=400, detail="reason is required (at least 3 characters)")
+    
+    try:
+        result = skip_issue(
+            db,
+            task_id=task_id,
+            issue_id=issue_id,
+            decision_id=decision_id,
+            reason=reason,
+            user_id=user.id,
+            user_name=user.name,
+        )
+        
+        return JSONResponse({
+            "ok": True,
+            "issue_id": result.issue_id,
+            "action": result.action,
+            "resolved": result.resolved,
+            "message": result.message,
+        })
+    
+    except ReviewError as exc:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": str(exc),
+                "issue_id": issue_id,
+            },
+            status_code=400,
+        )

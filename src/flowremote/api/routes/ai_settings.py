@@ -12,6 +12,7 @@ from flowremote.contracts.models import User
 from flowremote.control_plane.ai_settings import (
     AISettingsError,
     public_settings,
+    check_connection,
     save_settings,
 )
 from flowremote.control_plane.db import Database
@@ -83,3 +84,54 @@ async def save_ai_settings(
     if _wants_json(request):
         return JSONResponse({"ok": True, "settings": settings.as_dict()})
     return RedirectResponse("/settings/ai?saved=1", status_code=303)
+
+
+@router.post("/settings/ai/test", response_class=JSONResponse)
+async def test_ai_connection(
+    request: Request,
+    user: User | None = Depends(current_user),  # noqa: B008 - FastAPI dependency idiom.
+):
+    """Test AI provider connection with 3s timeout.
+    
+    Accepts both JSON and form-encoded requests. Returns connection status,
+    model name, latency and actionable error messages. Never stores credentials
+    unless explicitly saved via /settings/ai.
+    """
+    if user is None:
+        raise HTTPException(status_code=401, detail="sign in required")
+    
+    # Read request body - support both JSON and form
+    content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+    
+    if content_type == "application/json":
+        try:
+            data = await request.json()
+        except Exception:
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "provider": "unknown",
+                    "model": None,
+                    "latency_ms": 0,
+                    "message": "Invalid JSON request.",
+                },
+                status_code=400,
+            )
+    else:
+        # Form-encoded
+        data = await read_form(request)
+    
+    provider = data.get("provider", "").strip().lower()
+    base_url = data.get("base_url", "").strip()
+    model = data.get("model", "").strip()
+    api_key = data.get("api_key", "").strip()
+    
+    # Test the connection (never raises, always returns result)
+    result = check_connection(
+        provider=provider,
+        base_url=base_url,
+        model=model,
+        api_key=api_key,
+    )
+    
+    return JSONResponse(result.as_dict())

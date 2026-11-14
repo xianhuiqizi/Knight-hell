@@ -9,8 +9,64 @@
     before storage and is never sent back to the browser.</p>
   {% if saved %}<p class="notice success">AI connection settings saved.</p>{% endif %}
   {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  
+  <!-- Connection Test Card -->
+  <section class="connection-test-card">
+    <h2>Test Connection</h2>
+    <p class="small muted">Verify your AI provider connection before saving. Tests complete in under 3 seconds.</p>
+    
+    <form id="connection-test-form" class="connection-test-form">
+      <label class="field-label">Provider
+        <select id="test-provider" name="provider" required>
+          <option value="offline" {% if settings.provider == 'offline' %}selected{% endif %}>
+            Offline Demo AI
+          </option>
+          <option value="openai" {% if settings.provider == 'openai' %}selected{% endif %}>
+            OpenAI-compatible endpoint
+          </option>
+        </select>
+      </label>
+      
+      <label class="field-label">Model
+        <input id="test-model" name="model" value="{{ settings.model }}" 
+               maxlength="160" placeholder="gpt-4">
+      </label>
+      
+      <label class="field-label">API base URL <span class="muted">(optional)</span>
+        <input id="test-base-url" name="base_url" value="{{ settings.base_url }}" 
+               inputmode="url" placeholder="https://api.openai.com/v1">
+      </label>
+      
+      <label class="field-label">API key
+        <input id="test-api-key" name="api_key" type="password" 
+               maxlength="4096" autocomplete="off"
+               placeholder="Enter key to test (not saved)">
+      </label>
+      
+      <div class="connection-test-actions">
+        <button type="submit" class="btn-primary" id="test-connection-btn">
+          <span class="btn-text">Test Connection</span>
+          <span class="btn-spinner" hidden>Testing...</span>
+        </button>
+        <button type="button" class="btn-ghost" id="use-offline-fallback" hidden>
+          Use Offline Demo AI
+        </button>
+      </div>
+      
+      <div id="connection-test-result" class="connection-test-result" hidden>
+        <div class="result-icon"></div>
+        <div class="result-content">
+          <div class="result-status"></div>
+          <div class="result-message"></div>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- Save Settings Form -->
   <form method="post" action="/settings/ai" class="settings-form"
         data-guide-section="settings-ai">
+    <h2>Save Settings</h2>
     <label class="field-label">Provider
       <select name="provider" required>
         <option value="offline" {% if settings.provider == 'offline' %}selected{% endif %}>
@@ -43,10 +99,9 @@
       <input type="checkbox" name="clear_key" value="1">
       Remove the saved API key
     </label>
-    <p class="note">Saving checks the form and encrypts the key. Connection testing is intentionally
-      not performed in this version, so no API request is sent when you save.</p>
     <button class="btn-primary" type="submit">Save connection</button>
   </form>
+  
   <section class="local-data-panel">
     <h2>This device</h2>
     <p class="small muted">FlowRemote caches the last authoritative task snapshot and pending

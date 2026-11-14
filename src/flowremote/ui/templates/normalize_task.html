@@ -178,9 +178,13 @@
 <h2 class="section">Needs your confirmation
   <span class="badge badge-unresolved">{{ state.unresolved }}</span></h2>
 {% if issues %}
+<h2 class="section">Confirmation needed ({{ issues|length }})</h2>
+<p class="muted">The following items need your review. Edit values if needed, then confirm or skip each item.</p>
+
 <div class="issue-grid" data-guide-section="normalize-review">
   {% for issue in issues %}
-  <article class="panel issue-card" id="issue-{{ issue.id }}">
+  <article class="panel issue-card confirmation-card" id="issue-{{ issue.id }}" 
+           data-issue-id="{{ issue.id }}" data-issue-type="{{ issue.issue_type }}">
     <div class="issue-card-head">
       <span class="badge badge-unresolved">{{ issue.type_label }}</span>
       <span class="small muted mono">{{ issue.order_id or "file-level" }}</span>
@@ -196,15 +200,79 @@
       {% endif %}
     </dl>
     <p class="small">{{ issue.reason }}</p>
-    <span class="badge">Pending confirmation</span>
+    
+    <!-- Editable form -->
+    <form class="card-form" data-card-form>
+      {% if issue.issue_type == 'missing_value' %}
+        <label class="field-label small">
+          {{ issue.field.replace('_', ' ').title() if issue.field else 'Value' }}
+          <input type="text" name="{{ issue.field }}" value="{{ issue.suggested_value or '' }}" 
+                 maxlength="200" placeholder="Enter value" data-field-input>
+        </label>
+      {% elif issue.issue_type == 'unit_conflict' %}
+        <label class="field-label small">
+          Quantity
+          <input type="number" name="quantity" value="{{ issue.suggested_value or '' }}" 
+                 min="1" step="1" data-field-input>
+        </label>
+        <label class="field-label small">
+          Unit
+          <select name="unit" data-field-input>
+            <option value="piece">Piece</option>
+            <option value="box">Box</option>
+            <option value="kg">Kilogram</option>
+          </select>
+        </label>
+      {% elif issue.issue_type == 'cross_file_conflict' %}
+        <label class="field-label small">
+          {{ issue.field.replace('_', ' ').title() if issue.field else 'Value' }}
+          <input type="text" name="{{ issue.field }}" value="{{ issue.suggested_value or issue.original_value }}" 
+                 data-field-input>
+        </label>
+      {% endif %}
+      
+      <div class="card-error" hidden data-card-error></div>
+      
+      <div class="card-actions">
+        <button type="button" class="btn-primary btn-sm" data-confirm-btn>
+          <span class="btn-text">Save & Recheck</span>
+          <span class="btn-spinner" hidden>Saving...</span>
+        </button>
+        <button type="button" class="btn-ghost btn-sm" data-skip-btn>Skip</button>
+      </div>
+    </form>
+    
+    <!-- Skip reason form -->
+    <div class="skip-reason-form" hidden data-skip-form>
+      <label class="field-label small">
+        Why skip? (Required)
+        <textarea name="skip_reason" rows="2" maxlength="500" 
+                  placeholder="e.g., Waiting for customer confirmation" data-skip-reason></textarea>
+      </label>
+      <div class="card-actions">
+        <button type="button" class="btn-primary btn-sm" data-skip-confirm>Confirm Skip</button>
+        <button type="button" class="btn-ghost btn-sm" data-skip-cancel>Cancel</button>
+      </div>
+    </div>
+    
+    <!-- Resolved state -->
+    <div class="card-resolved" hidden data-card-resolved>
+      <span class="resolved-icon">✓</span>
+      <span class="resolved-text">Resolved</span>
+    </div>
   </article>
   {% endfor %}
 </div>
-<p class="note">This increment records the six confirmation items and includes them in the
-  download. The editable confirmation cards are added in the next increment (Phase C/D);
-  every item remains unresolved until a person acts on it.</p>
+
+<div class="confirmation-summary">
+  <p><span id="unresolved-count">{{ issues|length }}</span> remaining · 
+     <span id="confirmed-count">0</span> confirmed · 
+     <span id="skipped-count">0</span> skipped</p>
+  <p class="small muted">All items must be resolved before downloading results.</p>
+</div>
+
 {% else %}
-<p class="muted">No confirmation items. The batch is complete.</p>
+<p class="muted">No confirmation items. The batch is ready for download.</p>
 {% endif %}
 
 <h2 class="section">Activity timeline</h2>
