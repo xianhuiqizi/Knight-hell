@@ -51,12 +51,36 @@ templates, migrations and tests — not from assumptions.
 | Gap | Status now |
 | --- | --- |
 | A. Multi-file upload, CSV/second sheet, per-file failure isolation | **Done** — 6-file picker, 10 MB/file + 20 MB total, upload-time recognition, visible file metadata, `file_error` item instead of batch failure. |
-| B. Normalized contract, mapping evidence, units, merge, idempotency | **Done** — `contracts/normalization.py`, rule mapping with confidence/evidence, thousand-CNY/box/date conversions, duplicate merge and conflict issues, deterministic fingerprint. AI mapping fallback remains deferred to C. |
+| B. Normalized contract, mapping evidence, units, merge, idempotency | **Done** — `contracts/normalization.py`, rule mapping with confidence/evidence, thousand-CNY/box/date conversions, duplicate merge and conflict issues, deterministic fingerprint. AI mapping fallback remains future work. |
 | E. Progress, current file, counts, elapsed, cancel, restart | **Done** — persisted tick job, 360 ms refresh, cancel deletes derived rows, restart is deterministic; observed 3.0 s. |
 | F. Timeline, summary, 3-sheet download | **Done** — upload/detect/map/start/normalize/complete events; normalized/changes/unresolved workbook; owner/admin guard. |
-| C. Visible AI connection test | Deferred, as requested. Existing encrypted settings and AI suggestion layer untouched. |
-| D. Editable human confirmation queue | Deferred. The six items are recorded, counted and exported in `unresolved`; the cards are read-only in this phase. |
-| G. Existing behaviour | **Preserved** — 234 baseline tests unchanged and passing; 38 new tests (272 total). |
+| C. Visible AI connection test | **Done in phase C** — dialog, 5-second probe, model/latency, error mapping and offline fallback; encrypted storage reused. See `docs/demoday-phase-c-report.md`. |
+| D. Editable human confirmation queue | **Done in phase D** — editable cards, AI suggestion, skip reason, revalidation, human gate and downloaded unresolved export. See `docs/demoday-phase-d-report.md`. |
+| G. Existing behaviour | **Preserved** — 234 baseline tests unchanged and passing; 79 new tests (313 total). |
+
+## Phase C result (implemented)
+
+| Gap | Status now |
+| --- | --- |
+| Visible AI connection window | **Done** — header entry, task-page card, provider/model/base/key fields, password input and `••••ABCD` hint. |
+| Test connection within 5 seconds | **Done** — 5.0 s probe timeout plus a 5.2 s endpoint watchdog; real DeepSeek probe measured ~2.2 s. |
+| Success and failure feedback | **Done** — model/latency on success; invalid key, quota, network, model/URL and config messages with next actions. |
+| Offline fallback | **Done** — failed or unkeyed online test auto-saves Offline Demo AI, shows a yellow notice, and cleanup still completes. |
+| Encrypted storage and non-disclosure | **Done** — successful key encrypted in `ai_settings`; never echoed, logged or stored in browser storage. |
+| Demo-mode prefill | **Done** — environment provider/model/base URL prefill; key value is not sent to the browser. |
+
+## Phase D result (implemented)
+
+| Gap | Status now |
+| --- | --- |
+| Six editable confirmation cards | **Done** — each card shows source/row, original, reason, current values, status and editable fields. |
+| Revalidate every edit | **Done** — required fields, quantity, unit, money, date and `amount = quantity × unit price` are checked server-side; bad edits stay unresolved with a readable error. |
+| AI suggestion option | **Done** — saved OpenAI-compatible/DeepSeek Flash advice when available, grounded Offline Demo AI otherwise; fields, confidence, reason and evidence; never auto-confirms. |
+| Skip with unresolved export | **Done** — required reason, excluded from clean output, retained in `unresolved` with the human reason appended. |
+| Human gate and download lock | **Done** — `Complete cleaning` disabled while anything remains; finish sets the batch/task complete; download rejects a pre-gate batch. |
+| Audit and idempotency | **Done** — append-only decisions, unique `decision_id`, AI/human/complete timeline events, no key logging. |
+| Existing behaviour | **Preserved** — 321 tests, 11 subtests; 234 baseline tests unchanged. |
 
 Evidence: `docs/demoday-demo-runbook.md`, `docs/demoday-phase1-change-report.md`,
-`output/demoday-phase1/`.
+`docs/demoday-phase-c-report.md`, `docs/demoday-phase-d-report.md`,
+`output/demoday-phase1/`, `output/phase-c/`.

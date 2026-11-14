@@ -385,6 +385,18 @@ def normalization_snapshot(db: Database, task_id: str) -> dict[str, Any] | None:
     total_issues = db.scalar(
         "SELECT COUNT(*) FROM normalization_issues WHERE batch_id = ?", (batch["id"],), 0
     )
+    confirmed = db.scalar(
+        "SELECT COUNT(*) FROM normalization_issues WHERE batch_id = ?"
+        " AND status = 'resolved'",
+        (batch["id"],),
+        0,
+    )
+    skipped = db.scalar(
+        "SELECT COUNT(*) FROM normalization_issues WHERE batch_id = ?"
+        " AND status = 'skipped'",
+        (batch["id"],),
+        0,
+    )
     duration = (
         batch.get("duration_ms")
         if batch["status"] in ("needs_review", "complete")
@@ -411,6 +423,10 @@ def normalization_snapshot(db: Database, task_id: str) -> dict[str, Any] | None:
         "auto_fixed": int(batch.get("auto_fixed") or 0),
         "issues": total_issues,
         "unresolved": unresolved,
+        "confirmed": int(confirmed or 0),
+        "skipped": int(skipped or 0),
+        "review_ready": batch["status"] == "needs_review" and int(unresolved or 0) == 0,
+        "review_completed_at": batch.get("review_completed_at"),
         "recognized": sum(
             1 for row in files if row["status"] in ("mapped", "normalized")
         ),
@@ -1219,8 +1235,10 @@ def download_workbook(db: Database, task_id: str) -> bytes:
     batch = get_batch(db, task_id)
     if batch is None:
         raise NormalizationJobError("This task has no normalization batch.")
-    if batch["status"] not in ("needs_review", "complete"):
-        raise NormalizationJobError("Finish the normalization run before downloading results.")
+    if batch["status"] != "complete":
+        raise NormalizationJobError(
+            "Resolve every confirmation item and click Complete cleaning before downloading."
+        )
     records = db.query(
         "SELECT order_id, customer_name, customer_id, quantity, unit, unit_price, amount,"
         " order_date, source_file, source_row FROM normalized_records"
@@ -1235,7 +1253,7 @@ def download_workbook(db: Database, task_id: str) -> bytes:
     )
     issues = db.query(
         "SELECT issue_type, order_id, source_file, source_row, field, original_value,"
-        " suggested_value, confidence, reason, status FROM normalization_issues"
+        " suggested_value, confidence, reason, status, skip_reason FROM normalization_issues"
         " WHERE batch_id = ? AND status IN ('unresolved', 'skipped')"
         " ORDER BY source_file, source_row, issue_type",
         (batch["id"],),
@@ -1283,7 +1301,12 @@ def download_workbook(db: Database, task_id: str) -> bytes:
     ]
     unresolved_sheet.append(unresolved_headers)
     for row in issues:
-        unresolved_sheet.append([row.get(header) for header in unresolved_headers])
+        payload = dict(row)
+        if payload.get("skip_reason"):
+            payload["reason"] = (
+                f"{payload.get('reason') or ''} Human skip: {payload['skip_reason']}".strip()
+            )
+        unresolved_sheet.append([payload.get(header) for header in unresolved_headers])
 
     header_fill = PatternFill("solid", fgColor="E7F2EF")
     for sheet in (normalized_sheet, changes_sheet, unresolved_sheet):

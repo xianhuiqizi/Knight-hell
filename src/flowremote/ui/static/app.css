@@ -48,8 +48,33 @@ a:hover { text-decoration: underline; }
 .brand-text { font-weight: 600; line-height: 1.1; }
 .brand-text small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
 
-.who { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.who { display: flex; align-items: center; gap: 10px; font-size: 14px; flex-wrap: wrap; justify-content: flex-end; }
 .who-name { color: var(--muted); }
+
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+}
+
+.lang-option {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.lang-option:hover { text-decoration: none; color: var(--text); }
+.lang-option.is-active { background: var(--card); color: var(--accent); box-shadow: 0 1px 4px rgba(28, 45, 72, 0.1); }
 .inline { margin: 0; }
 
 .page { max-width: 980px; margin: 0 auto; padding: 26px 20px 60px; }
@@ -1142,4 +1167,231 @@ a { color: var(--accent-2); }
   .page-head-actions > .btn-gate { width: 100%; text-align: center; }
   .normalize-upload { padding: 18px; }
   .progress-panel { padding: 16px; }
+}
+
+/* AI connection: test, latency and offline fallback. */
+.ai-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-provider-hint {
+  margin: -8px 0 4px;
+}
+
+.ai-dialog-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ai-dialog-buttons .btn-primary {
+  width: auto;
+  padding: 11px 20px;
+}
+
+.ai-fallback-notice {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #e7c77c;
+  border-radius: 10px;
+  background: #fff8e7;
+  color: #835707;
+  font-size: 12px;
+}
+
+.ai-settings-status.is-ok { color: #147a68; }
+.ai-settings-status.is-error { color: #a93434; }
+.ai-settings-status.is-warning { color: #835707; }
+.ai-settings-status.is-pending { color: var(--muted); }
+
+.ai-connection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: 820px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid #d1a844;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 8px 26px rgba(28, 45, 72, 0.055);
+}
+
+.ai-connection-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0 4px;
+  font-size: 13px;
+}
+
+.ai-connection-bar .small { margin: 0; max-width: 660px; }
+.ai-connection-bar > .btn-ghost { flex-shrink: 0; }
+
+.ai-settings-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ai-settings-summary .badge { margin-right: 6px; }
+.ai-settings-summary p { margin: 6px 0 0; }
+
+@media (max-width: 640px) {
+  .ai-field-grid { grid-template-columns: 1fr; }
+  .ai-dialog-buttons { width: 100%; justify-content: stretch; }
+  .ai-dialog-buttons .btn-primary,
+  .ai-dialog-buttons .btn-ghost { flex: 1; }
+  .ai-connection-bar,
+  .ai-settings-summary { flex-direction: column; align-items: flex-start; }
+  .ai-connection-bar > .btn-ghost,
+  .ai-settings-summary > .btn-gate { width: 100%; }
+}
+
+/* Human review and AI advice (Phase D). */
+.review-gate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 820px;
+  margin: 16px 0 4px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--amber);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.review-gate strong { font-size: 16px; }
+.review-gate p { margin: 4px 0 0; }
+.review-gate .btn-primary {
+  width: auto;
+  padding: 11px 18px;
+  white-space: nowrap;
+}
+
+.finish-complete {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  max-width: 820px;
+  margin: 16px 0 4px;
+  padding: 13px 16px;
+  border: 1px solid rgba(22, 101, 52, 0.28);
+  border-radius: 12px;
+  background: rgba(52, 211, 153, 0.1);
+  color: #166534;
+  font-size: 13px;
+}
+
+.issue-card-resolved { border-left-color: var(--green); }
+.issue-card-skipped { border-left-color: var(--muted); opacity: 0.88; }
+
+.issue-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.issue-input-grid .field-label {
+  margin: 5px 0;
+  font-size: 12px;
+}
+
+.issue-input-grid .field-label input,
+.issue-input-grid .field-label select {
+  padding: 8px 9px;
+  font-size: 13px;
+}
+
+.issue-card .issue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.issue-card .issue-actions .btn-primary {
+  width: auto;
+  padding: 9px 16px;
+}
+
+.issue-card .issue-actions .btn-ghost {
+  background: transparent;
+}
+
+.skip-box {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.skip-box .btn-ghost { margin-top: 2px; }
+
+.ai-suggestion-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(76, 180, 171, 0.45);
+  border-radius: 10px;
+  background: rgba(76, 180, 171, 0.08);
+  font-size: 12px;
+}
+
+.ai-suggestion-box strong { color: #0f766e; }
+.ai-suggestion-box p { margin: 5px 0 0; }
+.ai-suggestion-box ul {
+  margin: 5px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+}
+
+.ai-fallback-inline {
+  color: #9a6700 !important;
+}
+
+.ai-last-suggestion,
+.resolved-note {
+  margin: 8px 0;
+}
+
+.issue-form-error {
+  margin: 8px 0 0;
+  color: #b91c1c !important;
+  font-size: 12px;
+}
+
+.btn-primary:disabled,
+.btn-ghost:disabled,
+.btn-gate:disabled,
+.btn-mini:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+#normalize-review { scroll-margin-top: 86px; }
+
+@media (max-width: 640px) {
+  .review-gate { flex-direction: column; align-items: stretch; }
+  .review-gate .btn-primary { width: 100%; }
+  .issue-input-grid { grid-template-columns: 1fr; }
+  .issue-card .issue-actions .btn-primary { flex: 1; }
 }

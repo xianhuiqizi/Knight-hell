@@ -32,18 +32,18 @@
             Demo AI — offline grounded rules
           </option>
           <option value="openai" {% if ai.provider == 'openai' %}selected{% endif %}>
-            OpenAI Responses API
+            OpenAI-compatible (DeepSeek Flash default)
           </option>
         </select>
       </label>
       <label class="field-label">Model
         <input name="model" id="onboarding-model" maxlength="160"
-               value="{{ ai.model }}" placeholder="gpt-6-astra">
+               value="{{ ai.model }}" placeholder="deepseek-flash">
       </label>
     </div>
     <label class="field-label">API base URL <span class="muted">(optional)</span>
       <input name="base_url" value="{{ ai.base_url }}" inputmode="url"
-             placeholder="https://api.openai.com/v1">
+             placeholder="https://api.deepseek.com">
     </label>
     <label class="field-label">API key
       <input name="api_key" type="password" maxlength="4096"

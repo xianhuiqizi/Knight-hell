@@ -94,12 +94,15 @@ def verify_files() -> bool:
     return ok
 
 
-def seed_database(db: Database) -> str:
+def seed_database(db: Database, *, write_files: bool = True) -> str:
     demo_files = demo_sources()
-    demo_files_paths = write_demo_files(DEMO_DIR)
-    registry_path = write_customer_registry(DEMO_DIR / "customer_registry.csv")
-    print(f"demo files      : {len(demo_files_paths)} written to {DEMO_DIR}")
-    print(f"demo registry   : {registry_path}")
+    if write_files:
+        demo_files_paths = write_demo_files(DEMO_DIR)
+        registry_path = write_customer_registry(DEMO_DIR / "customer_registry.csv")
+        print(f"demo files      : {len(demo_files_paths)} written to {DEMO_DIR}")
+        print(f"demo registry   : {registry_path}")
+    else:
+        print(f"demo files      : existing files kept in {DEMO_DIR} (--skip-files)")
 
     existing = get_user_row_by_email(db, DEMO_EMAIL)
     if existing:
@@ -178,6 +181,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Seed the ENT207TC Demo Day account and batch.")
     parser.add_argument("--reset", action="store_true", help="delete the SQLite database first")
     parser.add_argument("--verify-only", action="store_true", help="only verify the demo pack")
+    parser.add_argument(
+        "--skip-files",
+        action="store_true",
+        help="rebuild the database without rewriting data/demoday (use while a workbook is open)",
+    )
     parser.add_argument("--db", default=None, help="override the database URL")
     args = parser.parse_args()
 
@@ -197,7 +205,7 @@ def main() -> int:
         if not verify_files():
             return 1
         print()
-        task_id = seed_database(db)
+        task_id = seed_database(db, write_files=not args.skip_files)
         print()
         if not verify_database(db, task_id):
             return 1

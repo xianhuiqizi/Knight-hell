@@ -26,7 +26,7 @@ def provider_for_user(
         return OfflineSuggestionProvider()
     api_key = cipher.decrypt(row.get("api_key_encrypted"))
     return OpenAISuggestionProvider(
-        model=row.get("model") or "gpt-6-astra",
+        model=row.get("model") or "deepseek-flash",
         api_key=api_key,
         base_url=row.get("base_url"),
     )

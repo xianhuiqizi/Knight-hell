@@ -1,11 +1,16 @@
 # Demo Day progress and next steps
 
-Snapshot date: 2026-11-14 · version **0.6.0** · branch `main` based on `1c79fe6`.
+> **Status update 2026-11-14 — Phases C and D are implemented.** The visible AI
+> connection test is documented in `docs/demoday-phase-c-report.md`; the editable
+> human review, **AI suggestion**, skip export and finish/download gate are
+> documented in `docs/demoday-phase-d-report.md`. Sections below that describe C
+> or D as future work are retained as the original hand-off.
 
-This document is the hand-off for the ENT207TC Demo Day build. It records what
-is complete, what is deliberately read-only in the current phase, and the
-detailed work remaining for the visible AI connection panel (C) and the
-human confirmation queue (D).
+Snapshot date: 2026-11-14 · version **0.9.0** · current suite **321 passed**.
+
+This document started as the phase-1 hand-off for the ENT207TC Demo Day build.
+It records what is complete, what is deliberately read-only, and the original
+detailed plans for C and D.
 
 ---
 
@@ -21,13 +26,14 @@ human confirmation queue (D).
 | Progress / cancel / idempotent restart | **Complete** |
 | Activity timeline | **Complete for normalization stages** |
 | Three-sheet `.xlsx` download | **Complete** |
-| Visible AI connection test (C) | **Not started** |
-| Editable human confirmation cards (D) | **Not started** |
-| Tests | **272 passed, 11 subtests** |
+| Visible AI connection test (C) | **Complete** (see phase C report) |
+| Editable human confirmation cards with AI suggestion (D) | **Complete** (see phase D report) |
+| Tests | **321 passed, 11 subtests** |
 | Demo sample database | **Committed** at `data/demoday/demo_flowremote.db` |
 
-The normalizer is deterministic, rule-first and makes no network request. C/D
-are the next increment; they are not hidden failures in the current page.
+The normalizer is deterministic, rule-first and makes no network request. AI
+advice is an explicit optional step in the human review; the server validates it,
+and every card still needs a human Confirm or Skip.
 
 ---
 
@@ -119,24 +125,25 @@ sheets with 37 / 231 / 7 rows including headers.
 
 ---
 
-## 3. Deliberate phase-1 boundaries
+## 3. Phase-1 read-only cards (superseded by Phase D)
 
-These are the exact reasons the current confirmation cards are read-only:
+The phase-1 build intentionally shipped read-only cards. Phase D now adds:
 
-1. No editable inputs, no per-field save/recheck, no Confirm/Skip actions.
-2. All six issues remain `unresolved`; the card shows **Pending confirmation**.
-3. The summary shows **0 human / 6 to confirm / 0 skipped**.
-4. Download is currently enabled while unresolved, because phase 1 is a
-   download skeleton. Phase D must change this to a hard completion gate.
-5. No AI connection test endpoint or panel; the normalizer makes no network
-   call.
-6. The timeline has no `ai_call` or `human_confirm` events yet.
+1. Editable inputs, server revalidation, Confirm and Skip with reason.
+2. Issue status transitions `unresolved → resolved/skipped` and a live counter.
+3. Summary counts for human-confirmed and skipped records.
+4. A hard completion gate: download is locked until all items are resolved and
+   **Complete cleaning** is pressed.
+5. Optional AI advice for each card, with online/offline fallback and no
+   auto-confirm.
+6. Timeline events for AI suggestion, human confirm/skip and review complete.
 
-Do not present the current read-only cards as a working human review step.
+The normalizer itself still makes no network call. See
+`docs/demoday-phase-d-report.md` for the delivered surface and tests.
 
 ---
 
-## 4. Next increment C — visible AI connection
+## 4. Historical plan — visible AI connection (C, now implemented)
 
 ### C1. Backend connection test
 
@@ -146,7 +153,7 @@ Do not present the current read-only cards as a working human review step.
 - Reuse `AISettingCipher`; never return the plain key. Keep the existing
   encrypted `ai_settings` table.
 - OpenAI-compatible test:
-  - Use a 2.5–3.0 s total timeout and no retries.
+  - Use a 5.0 s total timeout and no retries.
   - Prefer `GET {base_url}/models` with `Authorization: Bearer <key>`; if the
     endpoint does not implement model listing, fall back to a minimal
     model-backed request. Return the model id actually reported by the service.
@@ -202,7 +209,7 @@ Do not present the current read-only cards as a working human review step.
 
 ---
 
-## 5. Next increment D — editable human confirmation
+## 5. Historical D plan (now delivered) — editable human confirmation
 
 ### D1. Data and rules
 

@@ -277,11 +277,196 @@ if (document.querySelector(".action-form")) {
   }
 }
 
-// AI connection window (Feature 3). The header link still works as a normal
-// settings page when JavaScript is unavailable.
+// Human review cards: AI advice, confirm and skip. All AI output is advisory:
+// the presenter must confirm it, and every decision is validated server-side.
+const issueCards = document.querySelectorAll("[data-issue-card]");
+if (issueCards.length) {
+  const taskId = document.body.dataset.taskId;
+  const showIssueError = (card, message) => {
+    const box = card.querySelector("[data-issue-error]");
+    if (!box) return;
+    box.hidden = false;
+    box.textContent = message;
+  };
+  const clearIssueError = (card) => {
+    const box = card.querySelector("[data-issue-error]");
+    if (box) {
+      box.hidden = true;
+      box.textContent = "";
+    }
+  };
+  const setBusy = (card, busy) => {
+    card.querySelectorAll("button").forEach((button) => {
+      button.disabled = busy;
+    });
+  };
+
+  issueCards.forEach((card) => {
+    const form = card.querySelector("[data-issue-form]");
+    if (!form) return;
+    const aiButton = card.querySelector("[data-ai-suggest]");
+    const skipToggle = card.querySelector("[data-skip-toggle]");
+    const skipBox = card.querySelector("[data-skip-box]");
+    const skipButton = card.querySelector("[data-skip]");
+    const skipDirect = card.querySelector("[data-skip-direct]");
+    const aiBox = card.querySelector("[data-ai-result]");
+
+    aiButton?.addEventListener("click", async () => {
+      clearIssueError(card);
+      setBusy(card, true);
+      if (aiBox) {
+        aiBox.hidden = false;
+        aiBox.className = "ai-suggestion-box";
+        aiBox.textContent = "Asking AI for a suggestion…";
+      }
+      try {
+        const response = await fetch(
+          `/tasks/${taskId}/normalize/issues/${card.dataset.issueId}/ai-suggest`,
+          { method: "POST", headers: { Accept: "application/json" } },
+        );
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new Error("The AI suggestion returned an unreadable response.");
+        }
+        if (!response.ok) {
+          throw new Error(data.error || "The AI suggestion failed.");
+        }
+        for (const [field, value] of Object.entries(data.fields || {})) {
+          const input = form.querySelector(`[name="${field}"]`);
+          if (input) input.value = value;
+        }
+        if (aiBox) {
+          aiBox.hidden = false;
+          aiBox.className = "ai-suggestion-box";
+          aiBox.textContent = "";
+          const title = document.createElement("strong");
+          title.textContent = `${data.source_label || "AI suggestion"} · ${Math.round(
+            Number(data.confidence || 0) * 100,
+          )}%`;
+          const reason = document.createElement("p");
+          reason.dataset.i18nSkip = "true";
+          reason.textContent = data.reason || "";
+          aiBox.append(title, reason);
+          if (data.evidence && data.evidence.length) {
+            const evidence = document.createElement("ul");
+            evidence.dataset.i18nSkip = "true";
+            for (const item of data.evidence) {
+              const li = document.createElement("li");
+              li.textContent = item;
+              evidence.append(li);
+            }
+            aiBox.append(evidence);
+          }
+          if (data.warning) {
+            const warning = document.createElement("p");
+            warning.className = "ai-fallback-inline";
+            warning.textContent = data.warning;
+            aiBox.append(warning);
+          }
+        }
+      } catch (error) {
+        showIssueError(card, error.message || "The AI suggestion failed.");
+        if (aiBox) aiBox.hidden = true;
+      } finally {
+        setBusy(card, false);
+      }
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearIssueError(card);
+      setBusy(card, true);
+      const changes = {};
+      form.querySelectorAll("input[name], select[name]").forEach((input) => {
+        if (input.name !== "decision_id") changes[input.name] = input.value;
+      });
+      const decisionId = form.querySelector('[name="decision_id"]')?.value || "";
+      try {
+        const response = await fetch(
+          `/tasks/${taskId}/normalize/issues/${card.dataset.issueId}/confirm`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ decision_id: decisionId, changes }),
+          },
+        );
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new Error("The confirmation returned an unreadable response.");
+        }
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not confirm this item.");
+        }
+        window.location.reload();
+      } catch (error) {
+        showIssueError(card, error.message || "Could not confirm this item.");
+        setBusy(card, false);
+      }
+    });
+
+    skipToggle?.addEventListener("click", () => {
+      if (!skipBox) return;
+      skipBox.hidden = false;
+      skipBox.querySelector("[data-skip-reason]")?.focus();
+    });
+
+    const submitSkip = async (reason) => {
+      clearIssueError(card);
+      setBusy(card, true);
+      const decisionId = form.querySelector('[name="decision_id"]')?.value || "";
+      try {
+        const response = await fetch(
+          `/tasks/${taskId}/normalize/issues/${card.dataset.issueId}/skip`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ decision_id: decisionId, reason }),
+          },
+        );
+        let data;
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new Error("The skip response was unreadable.");
+        }
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not skip this item.");
+        }
+        window.location.reload();
+      } catch (error) {
+        showIssueError(card, error.message || "Could not skip this item.");
+        setBusy(card, false);
+      }
+    };
+
+    skipDirect?.addEventListener("click", () => {
+      void submitSkip("");
+    });
+
+    skipButton?.addEventListener("click", () => {
+      const reason = skipBox?.querySelector("[data-skip-reason]")?.value?.trim() || "";
+      void submitSkip(reason);
+    });
+  });
+}
+
+// AI connection window. The header/page openers work as normal links without
+// JavaScript; with JavaScript the connection test runs and a failure falls
+// back to Offline Demo AI. The key is only ever held in the password input or
+// the server-side encrypted store — never localStorage or IndexedDB.
 const aiDialog = document.getElementById("ai-settings-dialog");
 if (aiDialog) {
-  const opener = document.querySelector("[data-ai-settings-open]");
+  const openers = document.querySelectorAll("[data-ai-settings-open]");
   const closeButton = aiDialog.querySelector("[data-ai-settings-close]");
   const form = document.getElementById("ai-settings-form-modal");
   const provider = document.getElementById("ai-provider");
@@ -289,66 +474,209 @@ if (aiDialog) {
   const baseUrl = document.getElementById("ai-base-url");
   const apiKey = document.getElementById("ai-api-key");
   const keyStatus = document.getElementById("ai-key-status");
+  const providerHint = document.getElementById("ai-provider-hint");
   const status = document.getElementById("ai-settings-status");
+  const fallbackNotice = document.getElementById("ai-fallback-notice");
+  const connectButton = document.getElementById("ai-connect");
+  const offlineButton = document.getElementById("ai-use-offline");
+  let savedKeyStatus = "No saved API key.";
 
-  const setStatus = (message, isError = false) => {
+  const setStatus = (message, kind = "") => {
     status.textContent = message;
-    status.classList.toggle("is-error", isError);
+    status.className = `small ai-settings-status${kind ? ` ${kind}` : ""}`;
   };
-
+  const setFallback = (message) => {
+    fallbackNotice.hidden = !message;
+    fallbackNotice.textContent = message || "";
+  };
+  const keyStatusFor = (settings) => {
+    if (!settings.key_configured) {
+      return "No saved API key. A server environment key may still be used.";
+    }
+    if (settings.key_source === "environment") {
+      return "Environment key available (value not displayed).";
+    }
+    return `Saved key: ${settings.key_hint || "••••"} (${settings.key_source})`;
+  };
+  const updatePageSummary = (settings) => {
+    const badge = document.querySelector("[data-ai-summary-badge]");
+    const text = document.querySelector("[data-ai-summary-text]");
+    if (!badge || !text) return;
+    const online = settings.provider === "openai" && settings.key_configured;
+    badge.className = `badge ${online ? "badge-accepted" : "badge-state"}`;
+    badge.textContent = online ? "OpenAI-compatible" : "Offline Demo AI";
+    text.textContent = online
+      ? `${settings.model || "model"} · key configured`
+      : `Offline active · test ${settings.model || "deepseek-flash"} online`;
+  };
+  const syncProviderHint = () => {
+    if (!providerHint) return;
+    providerHint.textContent = provider.value === "offline"
+      ? "Offline Demo AI uses local rules and needs no key or network. Select OpenAI-compatible to test a key."
+      : "The key is encrypted only after a successful test. Connect probes the Base URL with a 5-second limit.";
+  };
   const fill = (settings) => {
-    provider.value = settings.provider;
+    provider.value = settings.provider || "offline";
     model.value = settings.model || "";
     baseUrl.value = settings.base_url || "";
     apiKey.value = "";
-    keyStatus.textContent = settings.key_configured
-      ? `Saved key: ${settings.key_hint} (${settings.key_source})`
-      : "No saved API key. A server environment key may still be used.";
-  };
-
-  const load = async () => {
+    savedKeyStatus = keyStatusFor(settings);
+    keyStatus.textContent = savedKeyStatus;
+    setFallback("");
     setStatus("");
+    syncProviderHint();
+    updatePageSummary(settings);
+  };
+  const load = async (preferOnline = false) => {
     try {
       const response = await fetch("/settings/ai", {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error("Could not load AI settings.");
-      fill(await response.json());
+      const settings = await response.json();
+      fill(settings);
+      if (preferOnline && settings.provider === "offline") {
+        // A connection test is an online action by default. The active provider
+        // only changes after a successful Connect; the page card still shows the
+        // current active provider until then.
+        provider.value = "openai";
+        syncProviderHint();
+        setStatus(
+          "Offline Demo AI is currently active. Paste a key and Connect to test OpenAI-compatible; the active provider changes only after a successful test.",
+          "is-pending",
+        );
+      }
     } catch (error) {
-      setStatus(error.message || "Could not load AI settings.", true);
+      setStatus(error.message || "Could not load AI settings.", "is-error");
     }
   };
 
-  opener?.addEventListener("click", (event) => {
-    if (typeof aiDialog.showModal !== "function") return;
-    event.preventDefault();
-    fill({ provider: "offline", model: "gpt-6-astra", base_url: "", key_configured: false });
-    aiDialog.showModal();
-    load();
+  openers.forEach((opener) => {
+    opener.addEventListener("click", (event) => {
+      if (typeof aiDialog.showModal !== "function") return;
+      event.preventDefault();
+      fill({
+        provider: "offline",
+        model: "deepseek-flash",
+        base_url: "https://api.deepseek.com",
+        key_configured: false,
+      });
+      aiDialog.showModal();
+      void load(opener.hasAttribute("data-ai-open-online"));
+    });
   });
   closeButton?.addEventListener("click", () => aiDialog.close());
   aiDialog.addEventListener("click", (event) => {
     if (event.target === aiDialog) aiDialog.close();
   });
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    setStatus("Saving…");
+  provider?.addEventListener("change", syncProviderHint);
+  apiKey?.addEventListener("input", () => {
+    const value = apiKey.value.trim();
+    if (value && provider.value === "offline") {
+      // Pasting a key while Offline Demo AI is selected means the presenter
+      // wants to test the online provider. Switch without hiding the intent.
+      provider.value = "openai";
+      syncProviderHint();
+      setStatus("API key detected. OpenAI-compatible is selected for this test.", "is-pending");
+    }
+    if (!value) {
+      keyStatus.textContent = savedKeyStatus;
+      return;
+    }
+    keyStatus.textContent = `Key will be encrypted after a successful test · visible hint ••••${value.slice(-4)}`;
+  });
+
+  const connect = async (forceOffline = false) => {
+    if (forceOffline) {
+      provider.value = "offline";
+    } else if (provider.value === "offline" && apiKey.value.trim()) {
+      provider.value = "openai";
+    }
+    syncProviderHint();
+    connectButton.disabled = true;
+    offlineButton.disabled = true;
+    setFallback("");
+    setStatus("Testing connection… (maximum 5 seconds)", "is-pending");
+    const formData = new FormData(form);
+    if (forceOffline) formData.set("provider", "offline");
+    const controller = new AbortController();
+    const abortTimer = window.setTimeout(() => controller.abort(), 6000);
     try {
-      const response = await fetch(form.action, {
+      const response = await fetch("/settings/ai/test", {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams(new FormData(form)),
+        body: new URLSearchParams(formData),
+        signal: controller.signal,
       });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "Could not save settings.");
-      fill(data.settings);
-      form.querySelector('[name="clear_key"]').checked = false;
-      setStatus("Connection settings saved. No test request was sent.");
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error("The connection test returned an unreadable response.");
+      }
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || "Could not test the connection.");
+      }
+      if (data.fallback) {
+        // Auto-fallback keeps the presenter's attempted model/base values in
+        // the form, clears only the secret, and changes the active provider to
+        // offline. This prevents the panel from looking like a page refresh.
+        provider.value = "offline";
+        syncProviderHint();
+        apiKey.value = "";
+        savedKeyStatus = keyStatusFor(data.settings);
+        keyStatus.textContent = savedKeyStatus;
+        updatePageSummary(data.settings);
+        if (data.connected) {
+          setStatus(data.message, "is-warning");
+        } else {
+          const action = data.action ? ` ${data.action}` : "";
+          setStatus(`${data.message}${action}`, "is-error");
+        }
+        setFallback(
+          `Offline Demo AI active · ${data.model || "grounded-rules-v1"}. You can close this window and start cleaning.`,
+        );
+      } else if (data.connected) {
+        if (data.provider === "offline") {
+          // An intentional offline choice does not need to reset the form.
+          // Only clear the secret; keep model/base values the presenter typed.
+          apiKey.value = "";
+          savedKeyStatus = keyStatusFor(data.settings);
+          keyStatus.textContent = savedKeyStatus;
+          updatePageSummary(data.settings);
+          setStatus(`Offline Demo AI ready · ${data.model} · 0 ms`, "is-ok");
+        } else {
+          fill(data.settings);
+          const latency = Number(data.latency_ms || 0);
+          setStatus(`Connected · ${data.model} · ${latency} ms`, "is-ok");
+        }
+      } else {
+        const action = data.action ? ` ${data.action}` : "";
+        setStatus(`${data.message}${action}`, "is-error");
+      }
     } catch (error) {
-      setStatus(error.message || "Could not save settings.", true);
+      const message = error?.name === "AbortError"
+        ? "The connection test timed out after 6 seconds."
+        : (error.message || "Could not test the connection.");
+      setStatus(message, "is-error");
+      setFallback(
+        "You can keep working with Offline Demo AI. The cleanup does not require a network.",
+      );
+    } finally {
+      window.clearTimeout(abortTimer);
+      connectButton.disabled = false;
+      offlineButton.disabled = false;
     }
+  };
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void connect(false);
+  });
+  offlineButton?.addEventListener("click", () => {
+    void connect(true);
   });
 }

@@ -13,7 +13,9 @@ from cryptography.fernet import Fernet, InvalidToken
 from flowremote.control_plane.db import Database, utc_now
 
 PROVIDERS = {"offline", "openai"}
-DEFAULT_MODEL = "gpt-6-astra"
+DEFAULT_MODEL = "deepseek-flash"
+DEFAULT_OPENAI_BASE_URL = "https://api.deepseek.com"
+DEMO_MODE_VALUES = {"1", "true", "yes", "on"}
 
 
 class AISettingsError(ValueError):
@@ -79,6 +81,40 @@ def _clean_base_url(value: str) -> str:
     )
 
 
+def clean_base_url(value: str) -> str:
+    """Public validation wrapper used by the connection test."""
+    return _clean_base_url(value)
+
+
+def demo_mode_active() -> bool:
+    return os.environ.get("FLOWREMOTE_DEMO_MODE", "").strip().lower() in DEMO_MODE_VALUES
+
+
+def _demo_environment_fill() -> PublicAISettings | None:
+    """Environment-only defaults for a rehearsed demo, never a key value."""
+    if not demo_mode_active():
+        return None
+    provider = os.environ.get("FLOWREMOTE_AI_PROVIDER", "offline").strip().lower()
+    if provider not in PROVIDERS:
+        provider = "offline"
+    env_key = bool(os.environ.get("OPENAI_API_KEY", "").strip())
+    model = os.environ.get("FLOWREMOTE_AI_MODEL", "").strip() or DEFAULT_MODEL
+    base_url = (
+        os.environ.get("FLOWREMOTE_AI_BASE_URL", "").strip()
+        or os.environ.get("OPENAI_BASE_URL", "").strip()
+    )
+    if not base_url:
+        base_url = DEFAULT_OPENAI_BASE_URL
+    return PublicAISettings(
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        key_configured=env_key,
+        key_hint="",
+        key_source="environment" if env_key else "none",
+    )
+
+
 def _row(db: Database, user_id: str) -> dict | None:
     rows = db.query("SELECT * FROM ai_settings WHERE user_id = ?", (user_id,))
     return rows[0] if rows else None
@@ -87,11 +123,14 @@ def _row(db: Database, user_id: str) -> dict | None:
 def public_settings(db: Database, user_id: str) -> PublicAISettings:
     row = _row(db, user_id)
     if not row:
+        demo = _demo_environment_fill()
+        if demo is not None:
+            return demo
         env_key = bool(os.environ.get("OPENAI_API_KEY"))
         return PublicAISettings(
             provider="offline",
             model=DEFAULT_MODEL,
-            base_url="",
+            base_url=DEFAULT_OPENAI_BASE_URL,
             key_configured=env_key,
             key_hint="",
             key_source="environment" if env_key else "none",
@@ -102,7 +141,7 @@ def public_settings(db: Database, user_id: str) -> PublicAISettings:
     return PublicAISettings(
         provider=row["provider"],
         model=row.get("model") or DEFAULT_MODEL,
-        base_url=row.get("base_url") or "",
+        base_url=row.get("base_url") or DEFAULT_OPENAI_BASE_URL,
         key_configured=saved_key or env_key,
         key_hint=f"••••{hint}" if hint else "",
         key_source="saved" if saved_key else ("environment" if env_key else "none"),
@@ -167,3 +206,46 @@ def save_settings(
 def configured_api_key(db: Database, cipher: AISettingCipher, user_id: str) -> str | None:
     row = _row(db, user_id)
     return cipher.decrypt(row.get("api_key_encrypted")) if row else None
+
+
+def connection_api_key(
+    db: Database,
+    cipher: AISettingCipher,
+    *,
+    user_id: str,
+    submitted_key: str,
+) -> tuple[str | None, str]:
+    """Resolve a key without ever returning it to the browser.
+
+    Precedence: newly pasted key, encrypted saved key, environment key. The
+    second value is a source label used only in the UI.
+    """
+    submitted = (submitted_key or "").strip()
+    if submitted:
+        return submitted, "submitted"
+    saved = configured_api_key(db, cipher, user_id)
+    if saved:
+        return saved, "saved"
+    environment = os.environ.get("OPENAI_API_KEY", "").strip()
+    if environment:
+        return environment, "environment"
+    return None, "none"
+
+
+def activate_offline(
+    db: Database,
+    cipher: AISettingCipher,
+    *,
+    user_id: str,
+) -> PublicAISettings:
+    """Switch the user to the offline provider while retaining a saved key."""
+    return save_settings(
+        db,
+        cipher,
+        user_id=user_id,
+        provider="offline",
+        model="",
+        base_url="",
+        api_key="",
+        clear_key=False,
+    )

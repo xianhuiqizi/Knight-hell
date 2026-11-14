@@ -1,10 +1,11 @@
-const CACHE_NAME = "flowremote-shell-20261118b";
+const CACHE_NAME = "flowremote-shell-20261118r";
 const SHELL = [
-  "/static/app.css?v=20261118b",
-  "/static/app.js?v=20261118b",
-  "/static/sync-client.js?v=20261118b",
-  "/static/guide-config.js?v=20261118b",
-  "/static/guide.js?v=20261118b",
+  "/static/app.css?v=20261118r",
+  "/static/i18n.js?v=20261118r",
+  "/static/app.js?v=20261118r",
+  "/static/sync-client.js?v=20261118r",
+  "/static/guide-config.js?v=20261118r",
+  "/static/guide.js?v=20261118r",
   "/static/offline.html",
   "/static/offline-cache.js",
   "/static/manifest.webmanifest",

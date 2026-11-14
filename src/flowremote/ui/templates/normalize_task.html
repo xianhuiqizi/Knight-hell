@@ -77,6 +77,24 @@
   formats recognized. Review the source list, then press <strong>Start cleaning</strong>.</p>
 {% endif %}
 
+<section class="ai-connection-bar" data-guide-section="normalize-ai" data-ai-connection-bar>
+  <div>
+    <p class="eyebrow">AI connection · optional</p>
+    <p class="ai-connection-line">
+      <span class="badge {{ ai_status_class }}" data-ai-summary-badge>{{ ai_status_label }}</span>
+      <strong data-ai-summary-text>{{ ai_summary }}</strong>
+      {% if demo_mode %}<span class="badge">Demo env prefill</span>{% endif %}
+    </p>
+    <p class="small muted">Default online target: <strong>DeepSeek Flash</strong>
+      (<code>deepseek-flash</code> · <code>https://api.deepseek.com</code>). Paste a key and
+      test in under 5 seconds. A failed or unkeyed test falls back to Offline Demo AI;
+      the cleanup still runs completely.</p>
+  </div>
+  <button class="btn-ghost" type="button" data-ai-settings-open data-ai-open-online>
+    Test online connection
+  </button>
+</section>
+
 {% if state.status == 'uploaded' or state.status == 'canceled' or state.status == 'failed' %}
 <section class="panel start-panel" data-guide-section="normalize-start">
   <div class="upload-card-head">
@@ -87,8 +105,8 @@
     <span class="badge">{{ state.recognized }}/{{ files|length }} recognized</span>
   </div>
   <p class="muted">Formats are detected and columns mapped. Start cleaning to run unit conversion,
-    date normalization and cross-file merge as a visible, cancellable job. No external service
-    is called.</p>
+    date normalization and cross-file merge as a visible, cancellable job. Cleaning itself never
+    calls the AI provider, so it still runs with Offline Demo AI.</p>
   {% if can_start %}
   <form method="post" action="/tasks/{{ task.id }}/normalize/start" class="approval-actions">
     <button class="btn-primary" type="submit">Start cleaning</button>
@@ -141,11 +159,10 @@
   <strong>{{ "✓" if state.status == "complete" else "!" }}</strong>
   <span>
     {% if state.status == 'complete' %}
-    Normalization finished. All {{ state.normalized_records }} merged records are ready to download.
+    Cleaning complete. {{ state.normalized_records }} merged records are ready to download.
     {% else %}
     Normalization finished with <strong>{{ state.unresolved }} item(s) to confirm</strong>.
-    The clean result can be downloaded now; the confirmation queue is recorded in the
-    <code>unresolved</code> sheet and will be editable in the review step.
+    Resolve every item, then press <strong>Complete cleaning</strong> to unlock the download.
     {% endif %}
   </span>
 </section>
@@ -155,13 +172,34 @@
   <div><span class="n">{{ state.raw_records }}</span><span class="l">source rows</span></div>
   <div><span class="n">{{ state.normalized_records }}</span><span class="l">records</span></div>
   <div><span class="n">{{ state.auto_fixed }}</span><span class="l">auto-fixed</span></div>
-  <div><span class="n">0</span><span class="l">human</span></div>
+  <div><span class="n">{{ state.confirmed }}</span><span class="l">human</span></div>
   <div><span class="n">{{ state.unresolved }}</span><span class="l">to confirm</span></div>
-  <div><span class="n">0</span><span class="l">skipped</span></div>
-  <div><span class="n">{{ state.elapsed_label }}</span><span class="l">duration</span></div>
+  <div><span class="n">{{ state.skipped }}</span><span class="l">skipped</span></div>
+  <div><span class="n">{{ state.elapsed_label }}</span><span class="l">normalize time</span></div>
 </div>
-<p class="small muted summary-engine">Engine: deterministic rules · normalize-v1 · no external AI call.
-  Human and skipped counts stay zero until the editable confirmation queue is connected.</p>
+<p class="small muted summary-engine">Engine: deterministic rules · normalize-v1 · optional
+  AI advice. Every item still needs a human Confirm or Skip.</p>
+
+{% if review_open %}
+<section class="review-gate" data-guide-section="normalize-finish">
+  <div>
+    <p class="eyebrow">Human gate</p>
+    <strong id="review-remaining">{{ state.unresolved }} item(s) remaining</strong>
+    <p class="small muted">Confirmed {{ state.confirmed }} · Skipped {{ state.skipped }} ·
+      Download is locked until the gate reaches zero.</p>
+  </div>
+  <form method="post" action="/tasks/{{ task.id }}/normalize/finish">
+    <button class="btn-primary as-button" type="submit" {% if not can_finish %}disabled{% endif %}>
+      {% if can_finish %}Complete cleaning{% else %}Complete cleaning ({{ state.unresolved }} left){% endif %}
+    </button>
+  </form>
+</section>
+{% else %}
+<div class="finish-complete">
+  <span class="badge badge-accepted">Review complete</span>
+  <span>All items are resolved. The cleaned workbook is ready.</span>
+</div>
+{% endif %}
 
 <div class="approval-actions">
   {% if can_download %}
@@ -169,20 +207,27 @@
     Download cleaned .xlsx
   </a>
   <span class="small muted">Three sheets: normalized · changes · unresolved</span>
+  {% else %}
+  <a class="btn-ghost" href="#normalize-review">Review the {{ state.unresolved }} open item(s)</a>
+  <span class="small muted">Download unlocks after Complete cleaning.</span>
   {% endif %}
 </div>
 
 <h2 class="section">Source files</h2>
 {{ file_table(files) }}
 
-<h2 class="section">Needs your confirmation
-  <span class="badge badge-unresolved">{{ state.unresolved }}</span></h2>
+<h2 class="section" id="normalize-review">Human review
+  <span class="badge badge-unresolved">{{ state.unresolved }} left</span>
+  <span class="badge">{{ state.confirmed }} confirmed</span>
+  <span class="badge">{{ state.skipped }} skipped</span>
+</h2>
 {% if issues %}
 <div class="issue-grid" data-guide-section="normalize-review">
   {% for issue in issues %}
-  <article class="panel issue-card" id="issue-{{ issue.id }}">
+  <article class="panel issue-card issue-card-{{ issue.status }}" id="issue-{{ issue.id }}"
+           data-issue-card data-issue-id="{{ issue.id }}">
     <div class="issue-card-head">
-      <span class="badge badge-unresolved">{{ issue.type_label }}</span>
+      <span class="badge {{ issue.status_class }}">{{ issue.type_label }}</span>
       <span class="small muted mono">{{ issue.order_id or "file-level" }}</span>
     </div>
     <p class="small muted mono">{{ issue.source_file or "—" }}
@@ -190,21 +235,97 @@
       {% if issue.field %}· {{ issue.field }}{% endif %}</p>
     <dl class="issue-values">
       <div><dt>Original</dt><dd>{{ issue.original_value or "(blank)" }}</dd></div>
-      {% if issue.suggested_value %}
-      <div><dt>Suggested</dt><dd>{{ issue.suggested_value }}
-        {% if issue.confidence is not none %}· {{ (issue.confidence * 100)|round|int }}%{% endif %}</dd></div>
-      {% endif %}
+      <div><dt>Status</dt><dd><span class="badge {{ issue.status_class }}">{{ issue.status_label }}</span></dd></div>
     </dl>
     <p class="small">{{ issue.reason }}</p>
-    <span class="badge">Pending confirmation</span>
+    {% if issue.ai_suggestion and issue.ai_suggestion.fields %}
+    <p class="small ai-last-suggestion">Last AI advice: {{ issue.ai_suggestion.source_label or "AI" }}
+      {% if issue.ai_suggestion.confidence is defined %}· {{ (issue.ai_suggestion.confidence * 100)|round|int }}%{% endif %}
+      · <span data-i18n-skip>{{ issue.ai_suggestion.reason }}</span>
+      {% if issue.ai_suggestion.warning %}
+      <span class="ai-fallback-inline">{{ issue.ai_suggestion.warning }}</span>
+      {% endif %}</p>
+    {% endif %}
+
+    {% if issue.edit_locked %}
+    <p class="small resolved-note">
+      {% if issue.status == 'skipped' %}
+      Skipped: {{ issue.skip_reason or "no reason recorded" }}. The record is kept in the unresolved export.
+      {% else %}
+      Confirmed by a person. Value changes are in the changes sheet.
+      {% endif %}
+    </p>
+    {% else %}
+    <form class="issue-form" data-issue-form>
+      <input type="hidden" name="decision_id" value="{{ issue.decision_id }}">
+      {% if issue.issue_type != 'file_error' %}
+      <div class="issue-input-grid">
+        {% for field in issue.allowed_fields %}
+        <label class="field-label">{{ issue.field_labels.get(field, field) }}
+          {% if field == 'unit' %}
+          <select name="{{ field }}">
+            {% for option in ['piece', 'box', 'kg'] %}
+            <option value="{{ option }}" {% if issue.form_values.get(field) == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+          {% elif field == 'quantity' %}
+          <input name="{{ field }}" type="number" min="1" step="1"
+                 value="{{ issue.form_values.get(field, '') }}">
+          {% elif field in ('unit_price', 'amount') %}
+          <input name="{{ field }}" type="number" min="0" step="0.01"
+                 value="{{ issue.form_values.get(field, '') }}">
+          {% elif field == 'order_date' %}
+          <input name="{{ field }}" type="date" value="{{ issue.form_values.get(field, '') }}">
+          {% else %}
+          <input name="{{ field }}" type="text" maxlength="200"
+                 value="{{ issue.form_values.get(field, '') }}">
+          {% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <p class="small issue-form-error" data-issue-error role="alert" hidden></p>
+      <div class="issue-actions">
+        {% if issue.issue_type != 'file_error' %}
+        <button class="btn-ghost btn-mini-ai" type="button" data-ai-suggest>
+          AI suggestion
+        </button>
+        <button class="btn-primary" type="submit" data-confirm>Confirm</button>
+        {% endif %}
+        <button class="btn-ghost" type="button" data-skip-direct>Skip now</button>
+        <button class="btn-ghost btn-mini" type="button" data-skip-toggle>Add reason</button>
+      </div>
+      <div class="skip-box" data-skip-box hidden>
+        <label class="field-label">Skip reason (optional)
+          <input type="text" maxlength="500" data-skip-reason
+                 placeholder="Optional: why is this record left unresolved?">
+        </label>
+        <p class="small muted">Leave blank to skip now. The audit log records “No reason provided.”</p>
+        <button class="btn-ghost" type="button" data-skip>Skip with this reason</button>
+      </div>
+      <div class="ai-suggestion-box" data-ai-result hidden></div>
+      {% else %}
+      <p class="small">This file could not be read. It cannot be repaired in this batch; skip it to record the reason.</p>
+      <p class="small issue-form-error" data-issue-error role="alert" hidden></p>
+      <div class="issue-actions">
+        <button class="btn-ghost" type="button" data-skip-direct>Skip now</button>
+        <button class="btn-ghost btn-mini" type="button" data-skip-toggle>Add reason</button>
+      </div>
+      <div class="skip-box" data-skip-box hidden>
+        <label class="field-label">Skip reason (optional)
+          <input type="text" maxlength="500" data-skip-reason
+                 placeholder="Optional: why is this file left unresolved?">
+        </label>
+        <p class="small muted">Leave blank to skip now. The audit log records “No reason provided.”</p>
+        <button class="btn-ghost" type="button" data-skip>Skip with this reason</button>
+      </div>
+      {% endif %}
+    </form>
+    {% endif %}
   </article>
   {% endfor %}
 </div>
-<p class="note">This increment records the six confirmation items and includes them in the
-  download. The editable confirmation cards are added in the next increment (Phase C/D);
-  every item remains unresolved until a person acts on it.</p>
 {% else %}
-<p class="muted">No confirmation items. The batch is complete.</p>
+<p class="muted">No confirmation items. The batch is ready to finish.</p>
 {% endif %}
 
 <h2 class="section">Activity timeline</h2>

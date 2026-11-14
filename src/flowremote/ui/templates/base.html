@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang|default('en') }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,16 +7,23 @@
   <title>{% block title %}FlowRemote{% endblock %}</title>
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/app.css?v=20261118b">
-  <script src="/static/app.js?v=20261118b" defer></script>
-  <script src="/static/sync-client.js?v=20261118b" defer></script>
-  <script src="/static/guide-config.js?v=20261118b" defer></script>
-  <script src="/static/guide.js?v=20261118b" defer></script>
+  <link rel="stylesheet" href="/static/app.css?v=20261118r">
+  <script>
+    window.FLOWREMOTE_LANG = {{ lang|default('en')|tojson }};
+    window.FLOWREMOTE_I18N = {{ i18n_dictionary|default('{}')|safe }};
+    window.FLOWREMOTE_I18N_PATTERNS = {{ i18n_patterns|default('[]')|safe }};
+  </script>
+  <script src="/static/i18n.js?v=20261118r" defer></script>
+  <script src="/static/app.js?v=20261118r" defer></script>
+  <script src="/static/sync-client.js?v=20261118r" defer></script>
+  <script src="/static/guide-config.js?v=20261118r" defer></script>
+  <script src="/static/guide.js?v=20261118r" defer></script>
 </head>
 <body
   data-user-id="{{ user.id if user else '' }}"
   data-task-id="{{ task.id if task is defined and task else '' }}"
-  data-task-status="{{ task.status if task is defined and task else '' }}">
+  data-task-status="{{ task.status if task is defined and task else '' }}"
+  data-lang="{{ lang|default('en') }}">
   <header class="topbar">
     <a class="brand" href="/">
       <span class="mark">FR</span>
@@ -29,10 +36,33 @@
       <span id="sync-status" class="sync-status" data-state="checking">Checking sync</span>
       <button id="guide-start" class="btn-ghost" type="button">Guide</button>
       <a class="btn-ghost" href="/settings">AI &amp; RPA</a>
-      <a class="btn-ghost" href="/settings/ai" data-ai-settings-open>AI settings</a>
+      <a class="btn-ghost" href="/settings/ai" data-ai-settings-open>AI connection</a>
       <form method="post" action="/logout" class="inline logout-form">
         <button type="submit" class="btn-ghost">Sign out</button>
       </form>
+      <nav class="lang-switch" aria-label="Language">
+        <a class="lang-option {{ 'is-active' if lang|default('en') == 'en' }}"
+           href="/language/en?next={{ request.url.path|urlencode }}"
+           {% if lang|default('en') == 'en' %}aria-current="page"{% endif %}
+           lang="en">EN</a>
+        <a class="lang-option {{ 'is-active' if lang|default('en') == 'zh' }}"
+           href="/language/zh?next={{ request.url.path|urlencode }}"
+           {% if lang|default('en') == 'zh' %}aria-current="page"{% endif %}
+           lang="zh-CN">中文</a>
+      </nav>
+    </div>
+    {% else %}
+    <div class="who">
+      <nav class="lang-switch" aria-label="Language">
+        <a class="lang-option {{ 'is-active' if lang|default('en') == 'en' }}"
+           href="/language/en?next={{ request.url.path|urlencode }}"
+           {% if lang|default('en') == 'en' %}aria-current="page"{% endif %}
+           lang="en">EN</a>
+        <a class="lang-option {{ 'is-active' if lang|default('en') == 'zh' }}"
+           href="/language/zh?next={{ request.url.path|urlencode }}"
+           {% if lang|default('en') == 'zh' %}aria-current="page"{% endif %}
+           lang="zh-CN">中文</a>
+      </nav>
     </div>
     {% endif %}
   </header>
@@ -41,44 +71,54 @@
   </main>
   {% if user %}
   <dialog id="ai-settings-dialog" class="ai-dialog" aria-labelledby="ai-settings-title">
-    <form id="ai-settings-form-modal" method="post" action="/settings/ai">
+    <form id="ai-settings-form-modal" method="post" action="/settings/ai"
+          data-ai-connection-form>
       <div class="dialog-head">
         <div>
-          <p class="eyebrow">Feature 3</p>
+          <p class="eyebrow">Connection test</p>
           <h2 id="ai-settings-title">AI connection</h2>
         </div>
         <button type="button" class="dialog-close" data-ai-settings-close aria-label="Close">&times;</button>
       </div>
-      <p class="muted small">Choose how FlowRemote proposes exception corrections. AI remains advisory;
-        approval and execution still require a person.</p>
+      <p class="muted small">Connect an OpenAI-compatible endpoint for AI assistance, or use the
+        local Offline Demo AI. AI remains advisory; approval and execution still require a person.</p>
       <label class="field-label">Provider
         <select name="provider" id="ai-provider">
-          <option value="offline">Offline grounded rules</option>
-          <option value="openai">OpenAI Responses API</option>
+          <option value="openai">OpenAI-compatible</option>
+          <option value="offline">Offline Demo AI</option>
         </select>
       </label>
-      <label class="field-label">Model
-        <input name="model" id="ai-model" value="gpt-6-astra" maxlength="160"
-               placeholder="gpt-6-astra">
-      </label>
-      <label class="field-label">API base URL <span class="muted">(optional)</span>
-        <input name="base_url" id="ai-base-url" inputmode="url"
-               placeholder="https://api.openai.com/v1">
-      </label>
+      <p class="small muted ai-provider-hint" id="ai-provider-hint">
+        Offline Demo AI uses local rules and needs no key or network. Select
+        OpenAI-compatible to test a key.
+      </p>
+      <div class="ai-field-grid">
+        <label class="field-label">Model
+          <input name="model" id="ai-model" value="deepseek-flash" maxlength="160"
+                 placeholder="deepseek-flash">
+        </label>
+        <label class="field-label">Base URL
+          <input name="base_url" id="ai-base-url" inputmode="url"
+                 placeholder="https://api.deepseek.com">
+        </label>
+      </div>
       <label class="field-label">API key
         <input name="api_key" id="ai-api-key" type="password" maxlength="4096"
-               autocomplete="new-password" placeholder="Leave blank to keep the saved key">
+               autocomplete="new-password" placeholder="Paste the key for this test">
       </label>
       <p class="small muted" id="ai-key-status">No saved API key.</p>
-      <label class="checkbox-row">
-        <input type="checkbox" name="clear_key" value="1">
-        Remove the saved API key
-      </label>
-      <p class="small ai-settings-status" id="ai-settings-status" role="status"></p>
-      <div class="dialog-actions">
+      <p class="small ai-settings-status" id="ai-settings-status" role="status"
+         aria-live="polite"></p>
+      <div class="ai-fallback-notice" id="ai-fallback-notice" role="status" hidden></div>
+      <div class="dialog-actions ai-dialog-actions">
         <a class="btn-ghost" href="/settings/ai">Open full settings</a>
-        <button class="btn-primary" type="submit">Save connection</button>
+        <div class="ai-dialog-buttons">
+          <button class="btn-ghost" type="button" id="ai-use-offline">Use Offline Demo AI</button>
+          <button class="btn-primary" type="submit" id="ai-connect">Connect</button>
+        </div>
       </div>
+      <p class="small muted">The test has a 5-second budget. A failed or unkeyed online test
+        automatically switches to Offline Demo AI, and cleaning still finishes.</p>
     </form>
   </dialog>
   {% endif %}

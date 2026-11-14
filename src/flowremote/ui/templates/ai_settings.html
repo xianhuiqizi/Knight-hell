@@ -9,6 +9,25 @@
     before storage and is never sent back to the browser.</p>
   {% if saved %}<p class="notice success">AI connection settings saved.</p>{% endif %}
   {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <section class="ai-settings-summary">
+    <div>
+      <span class="badge {{ 'badge-accepted' if settings.provider == 'openai' and settings.key_configured else 'badge-state' }}"
+            data-ai-summary-badge>
+        {{ 'OpenAI-compatible' if settings.provider == 'openai' and settings.key_configured else 'Offline Demo AI' }}
+      </span>
+      <strong data-ai-summary-text>{% if settings.provider == 'openai' and settings.key_configured %}{{ settings.model }} · key configured{% else %}Offline active · test {{ settings.model }} online{% endif %}</strong>
+      <p class="small muted">
+        {% if settings.key_configured %}
+        Key configured: {{ settings.key_hint or 'environment key' }} ({{ settings.key_source }})
+        {% else %}
+        No saved API key. A server environment key may still be used.
+        {% endif %}
+      </p>
+    </div>
+    <button class="btn-gate" type="button" data-ai-settings-open data-ai-open-online>
+      Test online connection
+    </button>
+  </section>
   <form method="post" action="/settings/ai" class="settings-form"
         data-guide-section="settings-ai">
     <label class="field-label">Provider
@@ -22,11 +41,11 @@
       </select>
     </label>
     <label class="field-label">Model
-      <input name="model" value="{{ settings.model }}" maxlength="160" placeholder="gpt-6-astra">
+      <input name="model" value="{{ settings.model }}" maxlength="160" placeholder="deepseek-flash">
     </label>
     <label class="field-label">API base URL <span class="muted">(optional)</span>
       <input name="base_url" value="{{ settings.base_url }}" inputmode="url"
-             placeholder="https://api.openai.com/v1">
+             placeholder="https://api.deepseek.com">
     </label>
     <label class="field-label">API key
       <input name="api_key" type="password" maxlength="4096" autocomplete="new-password"
@@ -43,9 +62,10 @@
       <input type="checkbox" name="clear_key" value="1">
       Remove the saved API key
     </label>
-    <p class="note">Saving checks the form and encrypts the key. Connection testing is intentionally
-      not performed in this version, so no API request is sent when you save.</p>
-    <button class="btn-primary" type="submit">Save connection</button>
+    <p class="note">The connection test is in the AI connection window. This form saves settings
+      without sending an API request; use <strong>Open connection test</strong> to see the model
+      name and latency.</p>
+    <button class="btn-primary" type="submit">Save without testing</button>
   </form>
   <section class="local-data-panel">
     <h2>This device</h2>

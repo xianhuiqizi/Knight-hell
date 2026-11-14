@@ -167,7 +167,7 @@ class OpenAISuggestionProvider:
     def __init__(
         self,
         *,
-        model: str = "gpt-6-astra",
+        model: str = "deepseek-flash",
         api_key: str | None = None,
         base_url: str | None = None,
     ) -> None:
@@ -281,7 +281,7 @@ def provider_from_env() -> SuggestionProvider:
         return OfflineSuggestionProvider()
     if mode == "openai":
         return OpenAISuggestionProvider(
-            model=os.environ.get("FLOWREMOTE_AI_MODEL", "gpt-6-astra").strip()
+            model=os.environ.get("FLOWREMOTE_AI_MODEL", "deepseek-flash").strip()
         )
     raise ValueError(
         "FLOWREMOTE_AI_PROVIDER must be 'offline' or 'openai', "

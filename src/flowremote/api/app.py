@@ -22,21 +22,22 @@ from flowremote.agent.providers import SuggestionProvider, provider_from_env
 from flowremote.api.routes import ai_settings as ai_settings_routes
 from flowremote.api.routes import approval as approval_routes
 from flowremote.api.routes import execution as execution_routes
+from flowremote.api.routes import language as language_routes
 from flowremote.api.routes import normalization as normalization_routes
+from flowremote.api.routes import onboarding as onboarding_routes
 from flowremote.api.routes import review as review_routes
 from flowremote.api.routes import session as session_routes
-from flowremote.api.routes import onboarding as onboarding_routes
+from flowremote.api.routes import settings_hub as settings_routes
 from flowremote.api.routes import suggestions as suggestion_routes
 from flowremote.api.routes import sync as sync_routes
-from flowremote.api.routes import settings_hub as settings_routes
 from flowremote.api.routes import tasks as task_routes
 from flowremote.api.routes import uploads as upload_routes
 from flowremote.api.sessions import SessionSigner, load_or_create_secret
 from flowremote.control_plane.ai_settings import AISettingCipher
 from flowremote.control_plane.db import (
     DATA_ROOT,
-    RUNTIME_ROOT,
     PROJECT_ROOT,
+    RUNTIME_ROOT,
     Database,
     StorageBackend,
     resolve_storage_config,
@@ -67,7 +68,7 @@ def create_app(
             db.apply_migrations()
         yield
 
-    app = FastAPI(title="FlowRemote", version="0.6.0", lifespan=lifespan)
+    app = FastAPI(title="FlowRemote", version="0.9.0", lifespan=lifespan)
     app.state.database_url = url
     app.state.database_factory = database_factory
     app.state.storage = storage
@@ -105,6 +106,7 @@ def create_app(
             "database": storage.engine,
         }
 
+    app.include_router(language_routes.router)
     app.include_router(ai_settings_routes.router)
     app.include_router(session_routes.router)
     app.include_router(onboarding_routes.router)

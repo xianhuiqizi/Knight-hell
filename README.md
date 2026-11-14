@@ -5,7 +5,7 @@ combines Excel ingestion, deterministic order validation, grounded AI correction
 suggestions, human review and approval, simulated RPA execution, audit logging,
 local-first browser caching and portable local/enterprise database storage.
 
-The current version is **0.6.0**. It is a complete promotional and course
+The current version is **0.9.0**. It is a complete promotional and course
 demonstration application, but it is **not yet a production enterprise AI-RPA
 product** because the RPA targets remain simulated and several production
 security and operations features are still missing.
@@ -29,7 +29,8 @@ security and operations features are still missing.
 | Registration onboarding and AI-RPA management | Implemented |
 | Light theme and section-by-section guided flow | Implemented |
 | Portable Windows demo executable | Implemented and smoke-tested |
-| Multi-source `.xlsx`/`.csv` normalization and 3-sheet export | Implemented (Demo Day Phase 1) |
+| Multi-source `.xlsx`/`.csv` normalization and 3-sheet export | Implemented (Demo Day) |
+| Visible AI connection test with offline fallback | Implemented (Demo Day Phase C) |
 | Real OA/BI/Excel connectors | Not implemented |
 | Autonomous RPA Worker | Not implemented; execution currently advances through web requests |
 | Retry / Resume / Cancel after partial execution | Not implemented |
@@ -335,11 +336,103 @@ merges duplicate `order_id`s, and records conflicts instead of overwriting them.
 .\.venv\Scripts\python.exe src\flowremote\devtools\seed_demoday.py --reset
 ```
 
-The multi-source **editable** confirmation queue and the visible AI connection
-test are the next increment; this phase records the six items, exports them and
-keeps the existing review/AI layers intact.
+The six items are now an **editable human gate** (Phase D): each card can be
+confirmed with validated field edits, skipped with an optional reason, or filled
+from an **AI suggestion**. The download unlocks only after all items are resolved and
+**Complete cleaning** is pressed.
 
-### 14. Portable Windows executable
+#### AI connection test (Phase C)
+
+Every task page exposes an optional **AI connection** card and dialog:
+
+- Providers: **OpenAI-compatible** and **Offline Demo AI**.
+- Default online target: **DeepSeek Flash** — model `deepseek-flash`, base URL
+  `https://api.deepseek.com`.
+- Fields: model, base URL, API key (`type=password`; only a `••••ABCD` hint is
+  shown after a successful test), plus a live **Connect** action.
+- The probe has a hard 5-second budget. Success shows the model name and measured
+  latency. Errors are classified as invalid key, quota/rate limit, network, model
+  or base URL, and configuration.
+- A failed or unkeyed online test automatically switches to **Offline Demo AI**
+  with a yellow notice; the cleanup flow still completes. A previously saved key
+  is retained for a later retry.
+- Successful keys are stored only in the existing encrypted `ai_settings` store.
+  They are never returned, logged, or placed in `localStorage` / IndexedDB.
+- `FLOWREMOTE_DEMO_MODE=1` can prefill provider/model/base URL from environment
+  variables; the key value stays server-side and the presenter still chooses
+  Paste → Connect.
+- The normalizer itself remains rules-only; the AI connection is used only for
+  optional review advice and never blocks cleaning.
+
+```powershell
+# optional, never commit a real key
+$env:FLOWREMOTE_DEMO_MODE="1"
+$env:FLOWREMOTE_AI_PROVIDER="openai"
+$env:FLOWREMOTE_AI_MODEL="deepseek-flash"
+$env:OPENAI_BASE_URL="https://api.deepseek.com"
+$env:OPENAI_API_KEY="..."   # only in the local shell
+```
+
+#### Human review with AI advice (Phase D)
+
+The multi-source result page now has an editable **Human review** queue:
+
+- **6 deterministic cards**: two missing values, two unit conflicts and two
+  cross-file conflicts. Each shows the source file/row, original value, reason,
+  current record values and status.
+- **Edit + Confirm**: fields are validated again on the server (positive whole
+  quantity, canonical unit, money with at most two decimals, real date, and
+  `amount = quantity × unit price`). Invalid edits are rejected with a readable
+  message and the card remains pending.
+- **AI suggestion**: calls the saved OpenAI-compatible connection when available;
+  otherwise it uses grounded **Offline Demo AI** advice. AI returns candidate
+  fields, confidence, reason and evidence, but never auto-confirms. The model
+  cannot invent a customer ID: an ID not already present in the batch is rejected
+  and the offline suggestion is shown instead.
+- **Skip (optional reason)**: excludes the order from the normalized output and
+  keeps the skipped item, reason and source in the `unresolved` sheet. Leaving the
+  reason blank records `No reason provided.` so a direct skip still remains
+  auditable.
+- **Finish gate**: the remaining counter reaches zero only after every card is
+  confirmed or skipped. **Complete cleaning** is disabled until then, and the
+  download endpoint rejects a batch that has not passed the gate.
+- **Audit**: `normalize_ai_suggestion`, `normalize_human_confirm`,
+  `normalize_human_skip` and `normalize_review_complete` events are appended to
+  the timeline. Decisions are idempotent through a client decision ID.
+
+Phase D API:
+
+```text
+POST /tasks/{id}/normalize/issues/{issue_id}/ai-suggest
+POST /tasks/{id}/normalize/issues/{issue_id}/confirm
+POST /tasks/{id}/normalize/issues/{issue_id}/skip
+POST /tasks/{id}/normalize/finish
+```
+
+Validation and AI parsing are covered by tests, including a mocked DeepSeek
+chat-completions call, a rejected invented customer ID, duplicate decision replay,
+skip export, arithmetic mismatch and the finish gate.
+
+### 14. Bilingual interface (English / 中文)
+
+English is the default for every new visitor, even when the browser sends a
+Chinese `Accept-Language` header. The top bar exposes a compact **EN / 中文**
+switch; it stores a one-year `flowremote_lang` cookie and reloads the current
+path.
+
+- All main pages are translated: login/signup, tasks, new task, normalization
+  progress and review, AI connection/settings, onboarding, approval, execution
+  and results.
+- Server-rendered status labels and page titles are translated at the response
+  boundary; the same dictionary is exposed to `i18n.js`, which translates text
+  inserted later by the AI/review JavaScript.
+- Technical data (customer names, model names, field IDs, file names, generated
+  AI reasoning) is deliberately not rewritten.
+- The switch is a normal link, so it works without JavaScript:
+  `/language/en?next=/...` and `/language/zh?next=/...`.
+- Invalid languages return 404; `next` must stay on the same site.
+
+### 15. Portable Windows executable
 
 Download the current build:
 
@@ -524,6 +617,7 @@ Important invariants:
 | --- | --- |
 | GET | `/settings/ai` |
 | POST | `/settings/ai` |
+| POST | `/settings/ai/test` |
 
 ### Simulation and audit
 
@@ -599,22 +693,30 @@ to a public production environment.
 
 Copy `.env.example` to `.env` when environment configuration is needed.
 
-Default demonstration behavior:
+The default connection target is **DeepSeek Flash**:
 
 ```text
 FLOWREMOTE_AI_PROVIDER=offline
+FLOWREMOTE_AI_MODEL=deepseek-flash
+OPENAI_BASE_URL=https://api.deepseek.com
 ```
 
-Online provider:
+`FLOWREMOTE_AI_PROVIDER=offline` is the safe default until a key is present; the
+AI connection window opens its online test with the DeepSeek Flash model and base
+URL prefilled. For an environment-level online provider:
 
 ```text
 FLOWREMOTE_AI_PROVIDER=openai
-FLOWREMOTE_AI_MODEL=gpt-6-astra
+FLOWREMOTE_AI_MODEL=deepseek-flash
+OPENAI_BASE_URL=https://api.deepseek.com
 OPENAI_API_KEY=...
 ```
 
 Users can also configure provider, model, base URL and encrypted key from the
-in-app **AI settings** window.
+in-app **AI connection** window. The **Connect** action probes the endpoint for
+up to 5 seconds, reports the model and latency, and automatically falls back to
+Offline Demo AI on failure. `FLOWREMOTE_DEMO_MODE=1` pre-fills safe fields from
+the environment without exposing the key.
 
 ---
 
@@ -622,11 +724,11 @@ in-app **AI settings** window.
 
 Current repository status:
 
-- **272 tests passed**
+- **321 tests passed**
 - **11 subtests passed**
 - Python compilation passed
 - Browser JavaScript syntax passed
-- All migrations `0001` through `0009` applied successfully
+- All migrations `0001` through `0010` applied successfully
 - Seed data reproduces 100 input / 88 passed / 12 flagged
 - Demo Day pack reproduces 6 files / 174 rows / 36 merged records / 6 issues
 - Feature 3 automated demo passes all nine checks
@@ -761,5 +863,8 @@ prototype to a pilot-ready AI-RPA control plane.
 - `demo/README.md` — demo commands and walkthrough.
 - `docs/demoday-gap-analysis.md` — current state → gap audit.
 - `docs/demoday-progress-and-next-steps.md` — phase-1 status, sample DB and detailed C/D backlog.
+- `docs/demoday-phase-c-report.md` — AI connection implementation, security and fallbacks.
+- `docs/demoday-phase-d-report.md`
+- `docs/i18n-report.md`
 - `docs/demoday-demo-runbook.md` — 60-second prep, 6-minute script and fallbacks.
 - `prompts/prompt-log.md` — AI-use and implementation prompt log.
