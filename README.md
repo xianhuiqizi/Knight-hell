@@ -5,10 +5,30 @@ combines Excel ingestion, deterministic order validation, grounded AI correction
 suggestions, human review and approval, simulated RPA execution, audit logging,
 local-first browser caching and portable local/enterprise database storage.
 
-The current version is **0.9.0**. It is a complete promotional and course
+The current version is **0.10.0**. It is a complete promotional and course
 demonstration application, but it is **not yet a production enterprise AI-RPA
 product** because the RPA targets remain simulated and several production
 security and operations features are still missing.
+
+## 0.10.0 — improvements from user feedback
+
+- Five-step cleanup guide and one-click example tasks, with downloadable sample files.
+- AI provider presets, advanced settings, and an exact, minimized per-issue data disclosure.
+- Source preview and correction of worksheet, header row and column mapping before processing.
+- Per-file box size, price unit and date format, saved as private reusable templates.
+- Side-by-side source conflicts, search/filter review queues and undo before completion.
+- Background normalization while the browser is closed; persisted steps resume when the app restarts.
+- Paged output/change/exclusion previews and a count reconciliation before downloading.
+- Windows executable rebuilt at the same version; old database migration compatibility fixed.
+
+Run the local application with **one server process** (the default). The background
+normalization worker runs inside that process; keep the application running when
+closing the browser. Restart automatically resumes batches marked running. A failed
+batch can be retried from its retained source files; cancellation/retry preserves
+source mappings and business rules. This worker does not automate the legacy RPA targets.
+
+Screenshots and verification: `output/user-improvements/comparison.html` and
+`docs/user-feedback-improvements.md`. The Windows executable is in `dist/`.
 
 ---
 

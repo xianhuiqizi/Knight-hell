@@ -215,8 +215,8 @@ if (normalizeBox) {
   const tick = async () => {
     let response;
     try {
-      response = await fetch(`/tasks/${taskId}/normalize/tick`, {
-        method: "POST",
+      response = await fetch(`/tasks/${taskId}/normalize/status`, {
+        method: "GET",
         headers: { Accept: "application/json" },
       });
     } catch (networkError) {
@@ -225,7 +225,7 @@ if (normalizeBox) {
         window.setTimeout(tick, 700);
         return;
       }
-      showError("Connection lost. Refresh this page to resume from the last saved step.");
+      showError("Connection lost. Processing continues in the application. Reopen this page to check progress.");
       return;
     }
     if (!response.ok) {
@@ -281,6 +281,41 @@ if (document.querySelector(".action-form")) {
 // the presenter must confirm it, and every decision is validated server-side.
 const issueCards = document.querySelectorAll("[data-issue-card]");
 if (issueCards.length) {
+  const statusFilter = document.querySelector("[data-review-status]");
+  const typeFilter = document.querySelector("select[data-review-type]");
+  const search = document.querySelector("[data-review-search]");
+  const filterCards = () => {
+    let visible = 0;
+    issueCards.forEach((card) => {
+      const match = (!statusFilter || statusFilter.value === "all" || card.dataset.reviewState === statusFilter.value)
+        && (!typeFilter || typeFilter.value === "all" || card.dataset.reviewType === typeFilter.value)
+        && (!search || (card.dataset.reviewText || "").toLowerCase().includes(search.value.toLowerCase()));
+      card.hidden = !match;
+      if (match) visible++;
+    });
+    const count = document.querySelector("[data-review-count]");
+    if (count) count.textContent = `${visible} / ${issueCards.length}`;
+  };
+  [statusFilter, typeFilter, search].forEach((control) => control?.addEventListener("input", filterCards));
+  filterCards();
+  document.querySelector("[data-next-issue]")?.addEventListener("click", () => {
+    const pending = [...issueCards].filter((card) => !card.hidden && card.dataset.reviewState === "unresolved");
+    const next = pending.find((card) => card.getBoundingClientRect().top > 120) || pending[0];
+    if (next) {
+      next.scrollIntoView({ behavior: "smooth", block: "start" });
+      next.querySelector("input:not([type=hidden]),button")?.focus({ preventScroll: true });
+    }
+  });
+  document.querySelectorAll("[data-use-source]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = button.closest("[data-issue-card]");
+      const source = JSON.parse(button.dataset.useSource);
+      card.querySelectorAll("[data-issue-form] input[name], [data-issue-form] select[name]").forEach((input) => {
+        if (input.name !== "decision_id" && source[input.name] != null) input.value = source[input.name];
+      });
+      card.querySelector("[data-confirm]")?.focus();
+    });
+  });
   const taskId = document.body.dataset.taskId;
   const showIssueError = (card, message) => {
     const box = card.querySelector("[data-issue-error]");
@@ -460,6 +495,11 @@ if (issueCards.length) {
   });
 }
 
+document.querySelector('[name="box_to_piece"]')?.addEventListener("input", (event) => {
+  const example = document.querySelector("[data-box-example]");
+  if (example) example.textContent = String(Number(event.target.value || 0) * 2);
+});
+
 // AI connection window. The header/page openers work as normal links without
 // JavaScript; with JavaScript the connection test runs and a failure falls
 // back to Offline Demo AI. The key is only ever held in the password input or
@@ -470,6 +510,7 @@ if (aiDialog) {
   const closeButton = aiDialog.querySelector("[data-ai-settings-close]");
   const form = document.getElementById("ai-settings-form-modal");
   const provider = document.getElementById("ai-provider");
+  const preset = document.getElementById("ai-service-preset");
   const model = document.getElementById("ai-model");
   const baseUrl = document.getElementById("ai-base-url");
   const apiKey = document.getElementById("ai-api-key");
@@ -510,6 +551,9 @@ if (aiDialog) {
       : `Offline active · test ${settings.model || "deepseek-flash"} online`;
   };
   const syncProviderHint = () => {
+    if (preset && provider.value === "offline") preset.value = "offline";
+    if (preset && provider.value === "openai" && preset.value === "offline")
+      preset.value = baseUrl.value.includes("deepseek.com") ? "deepseek" : "custom";
     if (!providerHint) return;
     providerHint.textContent = provider.value === "offline"
       ? "Offline Demo AI uses local rules and needs no key or network. Select OpenAI-compatible to test a key."
@@ -517,6 +561,9 @@ if (aiDialog) {
   };
   const fill = (settings) => {
     provider.value = settings.provider || "offline";
+    if (preset) preset.value = settings.provider === "offline" ? "offline"
+      : (settings.base_url || "").includes("deepseek.com") ? "deepseek"
+      : (settings.base_url || "").includes("api.openai.com") ? "openai" : "custom";
     model.value = settings.model || "";
     baseUrl.value = settings.base_url || "";
     apiKey.value = "";
@@ -540,6 +587,7 @@ if (aiDialog) {
         // only changes after a successful Connect; the page card still shows the
         // current active provider until then.
         provider.value = "openai";
+        if (preset) preset.value = baseUrl.value.includes("deepseek.com") ? "deepseek" : "custom";
         syncProviderHint();
         setStatus(
           "Offline Demo AI is currently active. Paste a key and Connect to test OpenAI-compatible; the active provider changes only after a successful test.",
@@ -569,6 +617,16 @@ if (aiDialog) {
   aiDialog.addEventListener("click", (event) => {
     if (event.target === aiDialog) aiDialog.close();
   });
+  preset?.addEventListener("change", () => {
+    const choices = {
+      deepseek: ["deepseek-flash", "https://api.deepseek.com"],
+      openai: ["gpt-4.1-mini", "https://api.openai.com/v1"],
+    };
+    provider.value = preset.value === "offline" ? "offline" : "openai";
+    if (choices[preset.value]) [model.value, baseUrl.value] = choices[preset.value];
+    if (preset.value === "custom") aiDialog.querySelector(".ai-advanced").open = true;
+    syncProviderHint();
+  });
   provider?.addEventListener("change", syncProviderHint);
   apiKey?.addEventListener("input", () => {
     const value = apiKey.value.trim();
@@ -576,6 +634,7 @@ if (aiDialog) {
       // Pasting a key while Offline Demo AI is selected means the presenter
       // wants to test the online provider. Switch without hiding the intent.
       provider.value = "openai";
+      if (preset) preset.value = baseUrl.value.includes("deepseek.com") ? "deepseek" : "custom";
       syncProviderHint();
       setStatus("API key detected. OpenAI-compatible is selected for this test.", "is-pending");
     }

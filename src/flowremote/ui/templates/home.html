@@ -8,6 +8,13 @@
   </div>
   <a class="btn-gate" href="/tasks/new">+ New task</a>
 </div>
+<section class="workspace-welcome">
+  <div><p class="eyebrow">YOUR DATA, READY TO USE</p><h2>Turn scattered tables into one clear result</h2>
+  <p>Upload your files, check what needs attention, and download a clean Excel workbook.</p>
+  <div class="approval-actions"><a class="btn-primary" href="/tasks/new">Clean my spreadsheets</a><form method="post" action="/tasks/example"><button class="btn-ghost" type="submit">Try the example</button></form></div></div>
+  <aside><strong>Start with your files</strong><p>.xlsx or .csv · 1–6 files</p><span>AI is optional. You stay in control of every decision.</span></aside>
+</section>
+{% set step = 1 %}{% include 'cleanup_steps.html' %}
 {% if tasks %}
 <div class="task-list" data-guide-section="dashboard-tasks">
   {% for task in tasks %}

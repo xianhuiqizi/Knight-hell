@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Preview results - FlowRemote{% endblock %}
+{% block content %}
+<a class="back" href="/tasks/{{ task.id }}">← Back to task</a>
+<div class="page-head"><p class="eyebrow">CHECK BEFORE DOWNLOADING</p><h1>Preview results</h1>
+<p class="sub">Review the cleaned rows, every change and anything left out.</p></div>
+{% if batch.status != 'complete' %}<p class="notice">Draft preview. Resolve the remaining items and complete cleaning before downloading.</p>{% endif %}
+<div class="reconciliation panel">
+  <div><strong>{{ batch.raw_records }}</strong><span>Source rows</span></div><b>−</b>
+  <div><strong>{{ merged_duplicates }}</strong><span>Merged duplicate rows</span></div><b>−</b>
+  <div><strong>{{ excluded_orders }}</strong><span>Excluded orders</span></div><b>=</b>
+  <div><strong>{{ output_count }}</strong><span>Output records</span></div>
+</div>
+<nav class="preview-tabs" aria-label="Preview views">
+{% for key, label in [('records','Cleaned data'),('changes','Before and after'),('excluded','Excluded items')] %}
+<a class="{{ 'is-active' if view == key }}" href="?view={{ key }}">{{ label }}</a>{% endfor %}</nav>
+<section class="panel"><p class="small muted">{{ total }} entries · Page {{ page }} / {{ pages }}</p>
+<div class="table-wrap"><table class="table preview-table"><thead><tr>{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in rows %}<tr>{% for header in headers %}<td data-i18n-skip>{{ row.get(header) if row.get(header) is not none else '' }}</td>{% endfor %}</tr>{% else %}<tr><td colspan="{{ headers|length }}">No entries in this view.</td></tr>{% endfor %}
+</tbody></table></div><div class="approval-actions">
+{% if page > 1 %}<a class="btn-ghost" href="?view={{ view }}&page={{ page - 1 }}">Previous page</a>{% endif %}
+{% if page < pages %}<a class="btn-ghost" href="?view={{ view }}&page={{ page + 1 }}">Next page</a>{% endif %}
+</div></section>
+{% if batch.status == 'complete' %}<a class="btn-primary" href="/tasks/{{ task.id }}/normalize/download">Download cleaned .xlsx</a>{% else %}<a class="btn-primary" href="/tasks/{{ task.id }}#normalize-review">Continue reviewing</a>{% endif %}
+{% endblock %}

@@ -28,6 +28,7 @@ from flowremote.api.routes.tasks import task_visible
 from flowremote.contracts.models import User
 from flowremote.contracts.normalization import MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES
 from flowremote.control_plane.activity import log_event, recent_events
+from flowremote.control_plane.ai_disclosure import review_ai_context
 from flowremote.control_plane.ai_settings import (
     configured_api_key,
     demo_mode_active,
@@ -57,6 +58,7 @@ from flowremote.control_plane.normalization_review import (
     skip_issue,
     validate_suggestion_fields,
 )
+from flowremote.control_plane.normalization_worker import JOB_LOCK
 
 router = APIRouter()
 SessionUser = Annotated[User | None, Depends(current_user)]
@@ -188,6 +190,8 @@ def normalize_page_context(
         issue["status_class"] = status_classes.get(issue["status"], "badge-state")
         issue["decision_id"] = secrets.token_hex(8) if issue["status"] == "unresolved" else ""
         context = issue_context(db, task_id, issue["id"])
+        issue["duplicates"] = context.get("duplicates", []) if context else []
+        issue["ai_disclosure"] = review_ai_context(db, context) if context else {}
         issue["record"] = context.get("record") if context else None
         issue["current"] = context.get("current", {}) if context else {}
         issue["allowed_fields"] = context.get("allowed_fields", []) if context else []
@@ -274,6 +278,7 @@ def normalize_page_context(
         "review_open": snapshot.get("status") == "needs_review",
         "can_start": snapshot.get("status") in ("uploaded", "canceled", "failed"),
         "running": snapshot.get("status") == "running",
+        "step": 2 if snapshot.get("status") in ("uploaded", "canceled", "failed") else 3 if snapshot.get("status") == "running" else 5 if snapshot.get("status") == "complete" else 4,
     }
 
 
@@ -402,7 +407,8 @@ def start_normalization_run(
     if batch is None:
         raise HTTPException(status_code=404, detail="normalization batch not found")
     try:
-        start_normalization(db, task_id, actor=user.name)
+        with JOB_LOCK:
+            start_normalization(db, task_id, actor=user.name)
     except Exception as exc:
         message = (
             str(exc)
@@ -430,7 +436,8 @@ def tick_normalization_run(
         return RedirectResponse("/login", status_code=303)
     _visible_or_404(db, user, task_id)
     try:
-        snapshot = tick_normalization(db, task_id, request.app.state.upload_dir)
+        with JOB_LOCK:
+            snapshot = tick_normalization(db, task_id, request.app.state.upload_dir)
     except NormalizationJobError as exc:
         if wants_json:
             return JSONResponse({"error": str(exc)}, status_code=400)
@@ -480,7 +487,8 @@ def cancel_normalization_run(
         return RedirectResponse("/login", status_code=303)
     _visible_or_404(db, user, task_id)
     try:
-        cancel_normalization(db, task_id, actor=user.name)
+        with JOB_LOCK:
+            cancel_normalization(db, task_id, actor=user.name)
     except NormalizationJobError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RedirectResponse(f"/tasks/{task_id}", status_code=303)
@@ -571,44 +579,8 @@ async def suggest_normalization_issue(
         if not api_key:
             warning = "No usable online key; showing Offline Demo AI advice."
     if settings.provider == "openai" and api_key:
-        customer_name = context["current"].get("customer_name", "")
-        grounded_candidates = []
-        if customer_name:
-            grounded_candidates = [
-                {
-                    "customer_id": row["customer_id"],
-                    "customer_name": row["customer_name"],
-                    "source_file": row.get("source_file"),
-                    "source_row": row.get("source_row"),
-                }
-                for row in db.query(
-                    "SELECT DISTINCT customer_id, customer_name, source_file, source_row"
-                    " FROM normalized_records WHERE batch_id = ? AND is_primary = 1"
-                    " AND order_id <> ? AND customer_name = ?"
-                    " AND customer_id IS NOT NULL AND customer_id <> '' LIMIT 10",
-                    (issue["batch_id"], issue["order_id"] or "", customer_name),
-                )
-            ]
-        ai_context = {
-            "issue": {
-                "type": issue["issue_type"],
-                "field": issue["field"],
-                "order_id": issue["order_id"],
-                "original_value": issue["original_value"],
-                "reason": issue["reason"],
-            },
-            "current": context["current"],
-            "allowed_fields": context["allowed_fields"],
-            "alternatives": [
-                {
-                    "source_file": row.get("source_file"),
-                    "source_row": row.get("source_row"),
-                    **{name: row.get(name) for name in context["allowed_fields"]},
-                }
-                for row in context["duplicates"]
-            ],
-            "grounded_candidates": grounded_candidates,
-        }
+        ai_context = review_ai_context(db, context)
+        grounded_candidates = ai_context["grounded_candidates"]
         try:
             ai_result = await asyncio.wait_for(
                 run_in_threadpool(

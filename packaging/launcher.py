@@ -32,12 +32,12 @@ if not getattr(sys, "frozen", False):
     sys.path.insert(0, str(SOURCE_ROOT / "src"))
 
 APP_NAME = "FlowRemoteDemo"
-VERSION = "0.5.0"
+VERSION = "0.10.0"
 
 
 def data_root() -> Path:
     base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
-    root = base / APP_NAME
+    root = Path(os.environ["FLOWREMOTE_DATA_DIR"]) if os.environ.get("FLOWREMOTE_DATA_DIR") else base / APP_NAME
     for folder in ("runtime", "runtime/uploads", "runtime/targets", "runtime/logs", "seed"):
         (root / folder).mkdir(parents=True, exist_ok=True)
     return root
@@ -80,14 +80,30 @@ def prepare_demo_tree() -> None:
 
     with Database() as db:
         db.apply_migrations()
-        if db.scalar("SELECT COUNT(*) FROM tasks WHERE id = 'TASK-1001'", default=0):
-            return
-        registry = build_registry()
-        orders = build_orders(registry)
-        exceptions = build_exceptions(orders, registry)
-        write_registry_file(registry)
-        write_workbook(orders)
-        seed_database(db, orders, exceptions)
+        if not db.scalar("SELECT COUNT(*) FROM tasks WHERE id = 'TASK-1001'", default=0):
+            registry = build_registry()
+            orders = build_orders(registry)
+            exceptions = build_exceptions(orders, registry)
+            write_registry_file(registry)
+            write_workbook(orders)
+            seed_database(db, orders, exceptions)
+        from flowremote.control_plane.auth import create_user, get_user_row_by_email
+        from flowremote.control_plane.normalization_jobs import (
+            create_normalization_task,
+            recognize_normalization_task,
+        )
+        from flowremote.devtools.demoday_data import demo_sources, write_demo_files
+        account = get_user_row_by_email(db, "demo@flowremote.dev")
+        if not account:
+            account = create_user(db, name="Demo Operator", email="demo@flowremote.dev",
+                                  password="DemoDay2026!", onboarding_completed=True)
+        if not db.scalar("SELECT COUNT(*) FROM tasks WHERE owner_id = ? AND task_mode = 'normalize'",
+                         (account["id"],), 0):
+            task = create_normalization_task(db, Path(os.environ["FLOWREMOTE_UPLOAD_DIR"]),
+                                             account["id"], "Example: monthly order cleanup",
+                                             list(demo_sources()))
+            recognize_normalization_task(db, task, Path(os.environ["FLOWREMOTE_UPLOAD_DIR"]))
+        write_demo_files(DEMO_DATA / "examples")
     log("Demo data prepared")
 
 
@@ -103,8 +119,13 @@ def health(url: str, timeout: float = 0.5) -> dict | None:
 def choose_port(start: int = 8765, end: int = 8780) -> tuple[int, str | None]:
     for port in range(start, end + 1):
         url = f"http://127.0.0.1:{port}"
-        if health(url):
-            return port, url
+        running = health(url)
+        if running:
+            # A previous demo may still be running. Reuse only this version,
+            # otherwise start on another port so the new EXE opens the new UI.
+            if running.get("version") == VERSION:
+                return port, url
+            continue
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
             probe.settimeout(0.2)
             if probe.connect_ex(("127.0.0.1", port)) != 0:
@@ -202,6 +223,39 @@ def smoke_test() -> int:
             "guide_script": client.get("/static/guide.js").status_code,
             "light_theme": client.get("/static/app.css").status_code,
         }
+        example = client.post("/tasks/example", follow_redirects=False)
+        task_url = example.headers.get("location", "")
+        results["example"] = example.status_code
+        if task_url:
+            client.post(task_url + "/normalize/start", follow_redirects=False)
+            deadline = time.monotonic() + 20
+            while time.monotonic() < deadline:
+                state = client.get(task_url + "/normalize/status").json()
+                if state["status"] != "running":
+                    break
+                time.sleep(0.1)
+            from flowremote.control_plane.db import Database
+            with Database() as db:
+                issues = db.query("SELECT id FROM normalization_issues WHERE task_id = ?"
+                                  " AND status = 'unresolved'", (task_url.rsplit("/", 1)[-1],))
+            for issue in issues:
+                base = task_url + "/normalize/issues/" + issue["id"]
+                advice = client.post(base + "/ai-suggest").json()
+                decision = client.post(base + "/confirm", json={
+                    "decision_id": uuid.uuid4().hex, "changes": advice.get("fields", {}),
+                })
+                results["review_" + issue["id"]] = decision.status_code
+            results["finish"] = client.post(task_url + "/normalize/finish", follow_redirects=False).status_code
+            results["preview"] = client.get(task_url + "/normalize/preview").status_code
+            download = client.get(task_url + "/normalize/download")
+            results["download"] = download.status_code
+            if download.status_code == 200:
+                from io import BytesIO
+
+                from openpyxl import load_workbook
+                workbook = load_workbook(BytesIO(download.content))
+                results["workbook"] = 200 if workbook.sheetnames == ["normalized", "changes", "unresolved"] and workbook["normalized"].max_row == 37 else 500
+                workbook.close()
     passed = all(code in (200, 303) for code in results.values())
     output = {"passed": passed, "version": VERSION, "checks": results}
     target = DEMO_DATA / "runtime" / "logs" / "smoke-result.json"

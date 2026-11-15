@@ -19,7 +19,7 @@
         </td>
         <td class="small">
           {% if file.file_type %}{{ file.file_type|upper }}{% else %}—{% endif %}
-          {% if file.worksheet %}<div class="muted">{{ file.worksheet }}</div>{% endif %}
+          {% if file.worksheet %}<div class="muted" data-i18n-skip>{{ file.worksheet }}</div>{% endif %}
         </td>
         <td class="mono small">{{ file.header_row or "—" }}</td>
         <td class="mono">{{ file.row_count if file.row_count is not none else "—" }}</td>
@@ -28,6 +28,7 @@
           <span class="badge badge-{{ 'accepted' if file.status == 'normalized' else 'unresolved' if file.status == 'attention' else 'manual' }}"
                 id="file-status-{{ file.id }}">{{ file.status_label }}</span>
           {% if file.error %}<p class="small issue-reason">{{ file.error }}</p>{% endif %}
+          <a class="source-config-link" href="/tasks/{{ task.id }}/files/{{ file.id }}/configure">{{ 'Check columns and rules' if can_start else 'View source settings' }}</a>
           {% if file.mapping and file.mapping.columns %}
           <details class="mapping-details">
             <summary>Mapping evidence</summary>
@@ -58,6 +59,7 @@
 {% endmacro %}
 
 {% block content %}
+{% include 'cleanup_steps.html' %}
 <a class="back" href="/">&larr; All tasks</a>
 <div class="page-head page-head-actions">
   <div>
@@ -71,6 +73,7 @@
   {% endif %}
 </div>
 
+{% if request.query_params.get('configured') %}<p class="notice success">Recognition settings saved. Check the file list, then start cleaning.</p>{% endif %}
 {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
 {% if request.query_params.get('uploaded') %}
 <p class="notice success">{{ files|length }} files uploaded · {{ state.recognized }}/{{ files|length }}
@@ -85,10 +88,7 @@
       <strong data-ai-summary-text>{{ ai_summary }}</strong>
       {% if demo_mode %}<span class="badge">Demo env prefill</span>{% endif %}
     </p>
-    <p class="small muted">Default online target: <strong>DeepSeek Flash</strong>
-      (<code>deepseek-flash</code> · <code>https://api.deepseek.com</code>). Paste a key and
-      test in under 5 seconds. A failed or unkeyed test falls back to Offline Demo AI;
-      the cleanup still runs completely.</p>
+    <p class="small muted">Cleaning uses local rules. AI only helps when you ask for a suggestion during review. Connect once, or continue offline.</p>
   </div>
   <button class="btn-ghost" type="button" data-ai-settings-open data-ai-open-online>
     Test online connection
@@ -112,7 +112,7 @@
     <button class="btn-primary" type="submit">Start cleaning</button>
   </form>
   {% endif %}
-  <p class="small muted">Six recognized files are expected in the Demo Day pack. A file that
+  <p class="small muted">Check the columns and business rules for each source before starting. A file that
     cannot be read becomes one item to confirm; the other files still finish.</p>
 </section>
 {{ file_table(files) }}
@@ -139,7 +139,7 @@
   </dl>
   <p class="small muted" id="normalize-stage-note">Stage {{ state.stage_index + 1 }} of
     {{ state.stage_total }} · results are saved after every step, so this page can be refreshed
-    safely.</p>
+    safely. Processing continues when you close this page. Keep the application running.</p>
   <p class="ai-settings-status" id="normalize-error" role="status"></p>
   <form method="post" action="/tasks/{{ task.id }}/normalize/cancel" class="approval-actions">
     <button class="btn-ghost" type="submit">Cancel run</button>
@@ -213,6 +213,7 @@
   {% endif %}
 </div>
 
+<a class="btn-ghost preview-entry" href="/tasks/{{ task.id }}/normalize/preview">Preview results and changes</a>
 <h2 class="section">Source files</h2>
 {{ file_table(files) }}
 
@@ -222,10 +223,16 @@
   <span class="badge">{{ state.skipped }} skipped</span>
 </h2>
 {% if issues %}
+<div class="review-toolbar panel">
+<label class="field-label">Show status<select data-review-status><option value="all">All items</option><option value="unresolved">Pending confirmation</option><option value="resolved">Confirmed</option><option value="skipped">Skipped</option></select></label>
+<label class="field-label">Issue type<select data-review-type><option value="all">All types</option>{% for kind, group in issues|groupby('issue_type') %}<option value="{{ kind }}">{{ group[0].type_label }}</option>{% endfor %}</select></label>
+<label class="field-label">Find an order or file<input type="search" data-review-search placeholder="Search orders or filenames"></label>
+<button class="btn-ghost" type="button" data-next-issue>Next pending item</button><span class="small muted" data-review-count aria-live="polite"></span>
+</div>
 <div class="issue-grid" data-guide-section="normalize-review">
   {% for issue in issues %}
   <article class="panel issue-card issue-card-{{ issue.status }}" id="issue-{{ issue.id }}"
-           data-issue-card data-issue-id="{{ issue.id }}">
+           data-issue-card data-issue-id="{{ issue.id }}" data-review-state="{{ issue.status }}" data-review-type="{{ issue.issue_type }}" data-review-text="{{ issue.order_id or '' }} {{ issue.source_file or '' }}">
     <div class="issue-card-head">
       <span class="badge {{ issue.status_class }}">{{ issue.type_label }}</span>
       <span class="small muted mono">{{ issue.order_id or "file-level" }}</span>
@@ -238,6 +245,14 @@
       <div><dt>Status</dt><dd><span class="badge {{ issue.status_class }}">{{ issue.status_label }}</span></dd></div>
     </dl>
     <p class="small">{{ issue.reason }}</p>
+    {% if issue.issue_type == 'cross_file_conflict' %}
+    <div class="source-comparison table-wrap"><table class="table"><caption>Compare source values</caption><thead><tr><th>Source</th>{% for field in issue.allowed_fields %}<th>{{ issue.field_labels.get(field, field) }}</th>{% endfor %}<th>Actions</th></tr></thead><tbody>
+    {% for alternative in issue.duplicates %}<tr><td>{{ alternative.source_file }}<small> · {{ alternative.source_row }}</small></td>{% for field in issue.allowed_fields %}<td data-i18n-skip class="{{ 'different-value' if alternative.get(field)|string != issue.current.get(field)|string }}">{{ alternative.get(field) }}</td>{% endfor %}<td>{% if not issue.edit_locked %}<button type="button" class="btn-ghost" data-use-source='{{ dict(alternative)|tojson }}'>Use these values</button>{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% endif %}
+    {% if not issue.edit_locked and issue.issue_type != 'file_error' %}
+    <details class="ai-disclosure"><summary>What data will AI receive?</summary><p class="small">Online mode sends only the fields below to your configured provider. The workbook and filenames are not sent. Offline mode sends nothing.</p><pre>{{ issue.ai_disclosure|tojson(indent=2) }}</pre></details>
+    {% endif %}
     {% if issue.ai_suggestion and issue.ai_suggestion.fields %}
     <p class="small ai-last-suggestion">Last AI advice: {{ issue.ai_suggestion.source_label or "AI" }}
       {% if issue.ai_suggestion.confidence is defined %}· {{ (issue.ai_suggestion.confidence * 100)|round|int }}%{% endif %}
@@ -255,6 +270,7 @@
       Confirmed by a person. Value changes are in the changes sheet.
       {% endif %}
     </p>
+    {% if review_open %}<form method="post" action="/tasks/{{ task.id }}/normalize/issues/{{ issue.id }}/reopen"><button class="btn-ghost" type="submit">Undo decision and review again</button><p class="small muted">The decision history is kept. Saved edits from this decision are restored where available.</p></form>{% endif %}
     {% else %}
     <form class="issue-form" data-issue-form>
       <input type="hidden" name="decision_id" value="{{ issue.decision_id }}">

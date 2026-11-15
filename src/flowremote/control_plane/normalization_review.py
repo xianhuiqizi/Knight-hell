@@ -315,6 +315,9 @@ def local_suggestion(db: Database, context: dict) -> dict:
         )
 
     if issue_type == "unit_conflict":
+        options = db.scalar("SELECT options_json FROM normalization_files WHERE id = ?",
+                            (issue.get("file_id"),), "{}")
+        box_size = int(json.loads(options or "{}").get("box_to_piece", 12))
         quantity = _decimal(current.get("quantity"))
         price = _decimal(current.get("unit_price"))
         amount = _decimal(current.get("amount"))
@@ -330,18 +333,18 @@ def local_suggestion(db: Database, context: dict) -> dict:
             and quantity is not None
             and price is not None
             and amount is not None
-            and abs(amount - quantity * 12 * price) <= TOLERANCE
+            and abs(amount - quantity * box_size * price) <= TOLERANCE
         ):
-            fields["quantity"] = str(int(quantity * 12))
+            fields["quantity"] = str(int(quantity * box_size))
             fields["unit"] = "piece"
             return _suggestion(
                 fields,
                 confidence=0.9,
                 reason=(
-                    "The amount equals quantity × 12 × price, so the quantity appears "
+                    f"The amount equals quantity × {box_size} × price, so the quantity appears "
                     "to already be in pieces while the unit says box."
                 ),
-                evidence=["1 box = 12 pieces", "amount preserved"],
+                evidence=[f"1 box = {box_size} pieces", "amount preserved"],
             )
         if (
             quantity is not None
@@ -778,7 +781,7 @@ def confirm_issue(
                     now,
                 ),
             )
-        resolution = {"fields": updates, "final": final}
+        resolution = {"fields": updates, "final": final, "before": dict(record)}
         db.execute(
             "UPDATE normalization_issues SET status = 'resolved', resolved_value = ?,"
             " resolved_by = ?, resolved_at = ?, resolution_json = ?, skip_reason = NULL,"
@@ -865,7 +868,9 @@ def skip_issue(
                 stored_reason,
                 user.id,
                 now,
-                json.dumps({"reason": stored_reason}, ensure_ascii=False),
+                json.dumps({"reason": stored_reason,
+                            "primary_id": (context.get("record") or {}).get("id")},
+                           ensure_ascii=False),
                 issue_id,
             ),
         )
@@ -899,6 +904,67 @@ def skip_issue(
         _refresh_counts(db, issue["batch_id"], issue.get("order_id"))
         touch_task(db, task_id)
     return _reload_outcome(db, task_id, issue_id, "skip")
+
+
+def reopen_issue(db: Database, *, task_id: str, issue_id: str, user: User) -> None:
+    """Undo a decision before finish, preserving the original decision history."""
+    with db.transaction():
+        context = issue_context(db, task_id, issue_id)
+        if context is None:
+            raise ReviewError("Issue not found.")
+        issue = context["issue"]
+        if issue["batch_status"] != "needs_review":
+            raise ReviewError("Completed batches are locked. Reopen before finishing the review.")
+        if issue["status"] == "unresolved":
+            return
+        resolution = json.loads(issue.get("resolution_json") or "{}")
+        before = resolution.get("before") or {}
+        if issue["status"] == "resolved" and before:
+            record = context.get("record")
+            if not record:
+                raise ReviewError("Reopen the skipped item for this order first.")
+            for field in resolution.get("fields", {}):
+                if str(record.get(field)) != str(resolution["final"].get(field)):
+                    raise ReviewError("A later review changed this value. Reopen that decision first.")
+            for field in resolution.get("fields", {}):
+                db.execute(f"UPDATE normalized_records SET {field} = ? WHERE id = ?",
+                           (before.get(field), record["id"]))
+                db.execute(
+                    "INSERT INTO normalization_changes (id, batch_id, task_id, file_id, order_id,"
+                    " source_file, source_row, field, original_value, new_value, reason, method,"
+                    " created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'human', ?)",
+                    (new_id("NCH"), issue["batch_id"], task_id, record["file_id"],
+                     record["order_id"], record["source_file"], record["source_row"], field,
+                     record.get(field), before.get(field),
+                     "Undo confirmation; restored the previous value.", utc_now()),
+                )
+        if issue["status"] == "skipped" and issue.get("order_id"):
+            other_skipped = db.scalar(
+                "SELECT COUNT(*) FROM normalization_issues WHERE batch_id = ?"
+                " AND order_id = ? AND status = 'skipped' AND id <> ?",
+                (issue["batch_id"], issue.get("order_id"), issue_id), 0,
+            )
+            if not other_skipped:
+                primary_id = resolution.get("primary_id") or db.scalar(
+                    "SELECT r.id FROM normalized_records r JOIN normalization_files f ON f.id = r.file_id"
+                    " WHERE r.batch_id = ? AND r.order_id = ? ORDER BY f.ordinal, r.source_row LIMIT 1",
+                    (issue["batch_id"], issue["order_id"]),
+                )
+                if primary_id:
+                    db.execute("UPDATE normalized_records SET is_primary = 1 WHERE id = ?", (primary_id,))
+        now = utc_now()
+        db.execute("INSERT INTO normalization_reopens VALUES (?, ?, ?, ?, ?)",
+                   (new_id("REOPEN"), issue_id, user.id, now, issue["status"]))
+        db.execute(
+            "UPDATE normalization_issues SET status = 'unresolved', resolved_value = NULL,"
+            " resolved_by = NULL, resolved_at = NULL, skip_reason = NULL, resolution_json = '{}',"
+            " ai_suggestion_json = '{}', revision = revision + 1 WHERE id = ?", (issue_id,),
+        )
+        _refresh_counts(db, issue["batch_id"], issue.get("order_id"))
+        log_event(db, task_id=task_id, kind="normalize_human_reopen", actor=user.name,
+                  occurred_at=now, description=f"Reopened {issue.get('order_id') or issue_id} for review",
+                  payload={"issue_id": issue_id, "previous_status": issue["status"]})
+        touch_task(db, task_id)
 
 
 def finish_review(db: Database, *, task_id: str, user: User) -> dict:

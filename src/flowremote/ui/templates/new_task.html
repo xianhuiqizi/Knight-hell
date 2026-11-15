@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}New cleanup task - FlowRemote{% endblock %}
 {% block content %}
+{% set step = 1 %}{% include 'cleanup_steps.html' %}
 <a class="back" href="/">&larr; All tasks</a>
 <div class="page-head" data-guide-section="task-create">
   <p class="eyebrow">MULTI-SOURCE CLEANUP</p>
@@ -18,18 +19,19 @@
       data-max-total-bytes="20971520">
   <div class="upload-card-head">
     <div>
-      <p class="eyebrow">Demo Day flow</p>
+      <p class="eyebrow">YOUR FILES</p>
       <h2>Multi-source data cleanup</h2>
     </div>
     <span class="badge">Rules-only · no network</span>
   </div>
-  <p class="small muted">Choose 5–6 files of different shapes. The rules engine handles
+  <p class="small muted">Choose 1–6 order files. The rules engine handles
     header offsets, aliases, shuffled columns, unit conversions and mixed date formats. A bad
     file becomes an item to confirm; it never fails the whole batch.</p>
 
+  <p class="small"><a href="/examples.zip">Download sample files</a></p>
   <label for="task-name">Task name</label>
   <input id="task-name" name="name" type="text" maxlength="120" required
-         placeholder="e.g. Demo Day data cleanup" value="{{ name }}" autofocus>
+         placeholder="e.g. Monthly order cleanup" value="{{ name }}" autofocus>
 
   <label for="multi-files">Source files</label>
   <div class="file-picker multi-picker">
@@ -41,7 +43,7 @@
     </div>
   </div>
   <p id="multi-file-help" class="small muted">1–6 files, each up to 10 MB, 20 MB combined.
-    Accepts .xlsx and .csv. Select all six Demo Day files in one picker.</p>
+    Accepts .xlsx and .csv. Select the files you want to combine.</p>
   <p id="multi-file-summary" class="small file-summary" aria-live="polite"></p>
   <ul id="multi-file-list" class="selected-file-list" aria-label="Selected files"></ul>
   <p id="multi-file-error" class="alert compact-alert" role="alert" hidden></p>
@@ -50,7 +52,7 @@
     <strong>What happens next</strong>
     <p class="small muted">The next screen shows every file with its detected sheet, row count,
       field count and status. Press <strong>Start cleaning</strong> there. You can cancel without
-      keeping partial normalized rows. Download becomes available when the run has a result.</p>
+      keeping partial normalized rows. Review any issues, complete cleaning, then preview and download the result.</p>
   </div>
   <div class="upload-actions">
     <button class="btn-primary" type="submit">Upload &amp; detect</button>

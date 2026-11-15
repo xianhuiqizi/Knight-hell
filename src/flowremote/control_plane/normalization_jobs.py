@@ -1,8 +1,8 @@
 """Staged normalization job: persistence, progress, cancel and retry.
 
-One tick is one deterministic unit of work. The browser asks for a tick every
-350 ms, so progress survives a refresh and no background thread or in-memory
-job is required. Ticks are idempotent once the batch stops running.
+One tick is one deterministic unit of work, executed by the local background
+worker. The browser polls status only. Persisted stages survive application
+restart; the legacy tick endpoint remains available for compatibility.
 """
 
 from __future__ import annotations
@@ -25,12 +25,11 @@ from flowremote.control_plane.activity import log_event
 from flowremote.control_plane.db import Database, new_id, utc_now
 from flowremote.control_plane.normalization import (
     NormalizationError,
-    build_mapping,
-    detect_table,
     fingerprint_sources,
     merge_records,
     normalize_table,
 )
+from flowremote.control_plane.source_options import prepare_source
 from flowremote.control_plane.sync import touch_task
 
 STAGE_LABELS = {
@@ -222,8 +221,7 @@ def recognize_normalization_task(
             )
             try:
                 data = _file_bytes(upload_dir, file["storage_name"])
-                detected = detect_table(file["filename"], data)
-                mapping = build_mapping(detected)
+                detected, mapping, _box_size = prepare_source(file, data)
             except (NormalizationError, OSError) as exc:
                 _mark_attention(
                     db,
@@ -718,7 +716,7 @@ def _tick_detect(
     file = files[cursor]
     try:
         data = _file_bytes(upload_dir, file["storage_name"])
-        detected = detect_table(file["filename"], data)
+        detected, _mapping, _box_size = prepare_source(file, data)
     except (NormalizationError, OSError) as exc:
         _mark_attention(
             db,
@@ -794,8 +792,7 @@ def _tick_map(
     if file["status"] == "detected":
         try:
             data = _file_bytes(upload_dir, file["storage_name"])
-            detected = detect_table(file["filename"], data)
-            mapping = build_mapping(detected)
+            detected, mapping, _box_size = prepare_source(file, data)
         except (NormalizationError, OSError) as exc:
             _mark_attention(
                 db,
@@ -1001,14 +998,14 @@ def _tick_normalize(
     if file["status"] == "mapped":
         try:
             data = _file_bytes(upload_dir, file["storage_name"])
-            detected = detect_table(file["filename"], data)
-            mapping = build_mapping(detected)
+            detected, mapping, box_size = prepare_source(file, data)
             rows = normalize_table(
                 detected,
                 mapping,
                 source_file=file["filename"],
                 source_file_id=file["id"],
                 file_ordinal=int(file["ordinal"]),
+                box_to_piece=box_size,
             )
             _insert_file_result(
                 db,

@@ -269,6 +269,17 @@ class Database:
             statements = split_statements(path.read_text(encoding="utf-8"))
             with self.transaction():
                 for statement in statements:
+                    # An earlier released C/D build used a different migration
+                    # name and already added these two columns. Apply the rest
+                    # of the replacement migration without losing existing data.
+                    if (version == "0010_normalization_review"
+                            and "0010_normalization_human_review" in applied):
+                        shared = {
+                            "ALTER TABLE normalization_issues ADD COLUMN resolved_by TEXT",
+                            "ALTER TABLE normalization_issues ADD COLUMN revision INTEGER NOT NULL DEFAULT 1",
+                        }
+                        if statement in shared:
+                            continue
                     self.execute(statement)
                 self.execute(
                     "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",

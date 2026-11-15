@@ -1,0 +1,205 @@
+164 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+188 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.9
+188 INFO: Python: 3.13.5 (conda)
+238 INFO: Platform: Windows-11-10.0.26200-SP0
+238 INFO: Python environment: E:\knight_hell\.venv
+130 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+121 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+123 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+1945 WARNING: Failed to collect submodules for 'openai.lib.streaming.agents' because importing 'openai.lib.streaming.agents' raised: ImportError: cannot import name 'ToolDispatcher' from partially initialized module 'openai.lib.streaming.agents._dispatch' (most likely due to a circular import) (E:\knight_hell\.venv\Lib\site-packages\openai\lib\streaming\agents\_dispatch.py)
+121 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+131 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+132 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+129 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+6573 INFO: Module search paths (PYTHONPATH):
+['E:\\knight_hell',
+ 'E:\\anaconda3\\python313.zip',
+ 'E:\\anaconda3\\DLLs',
+ 'E:\\anaconda3\\Lib',
+ 'E:\\anaconda3',
+ 'E:\\knight_hell\\.venv',
+ 'E:\\knight_hell\\.venv\\Lib\\site-packages',
+ 'E:\\knight_hell\\src',
+ 'E:\\knight_hell\\packaging',
+ 'E:\\knight_hell\\src']
+125 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+7025 INFO: Appending 'datas' from .spec
+7029 INFO: checking Analysis
+7067 INFO: Building because E:\knight_hell\packaging\launcher.py changed
+7067 INFO: Looking for Python shared library...
+7068 INFO: Using Python shared library: E:\anaconda3\python313.dll
+7068 INFO: Running Analysis Analysis-00.toc
+7068 INFO: Target bytecode optimization level: 0
+7068 INFO: Initializing module dependency graph...
+7069 INFO: Initializing module graph hook caches...
+7081 INFO: Analyzing modules for base_library.zip ...
+125 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+117 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+127 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+8459 INFO: Processing standard module hook 'hook-encodings.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+143 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+9271 INFO: Processing standard module hook 'hook-heapq.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+9720 INFO: Processing standard module hook 'hook-math.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+11079 INFO: Processing standard module hook 'hook-pickle.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+37105 INFO: Caching module dependency graph...
+37179 INFO: Analyzing E:\knight_hell\packaging\launcher.py
+37251 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+37467 INFO: Processing standard module hook 'hook-xml.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+37802 INFO: Processing standard module hook 'hook-_ctypes.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+38146 INFO: Processing standard module hook 'hook-platform.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+38172 INFO: Processing standard module hook 'hook-webbrowser.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+38200 INFO: Processing standard module hook 'hook-sqlite3.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+146 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+38736 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+38737 INFO: SetuptoolsInfo: initializing cached setuptools info...
+346 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+40195 INFO: Processing standard module hook 'hook-psycopg_binary.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+40671 INFO: Processing standard module hook 'hook-zoneinfo.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+40711 INFO: Processing standard module hook 'hook-sysconfig.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+41092 INFO: Processing standard module hook 'hook-openpyxl.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+41405 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+42626 INFO: Processing standard module hook 'hook-anyio.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+137 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+43900 INFO: Processing standard module hook 'hook-pydantic.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+136 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+46350 INFO: Processing standard module hook 'hook-opentelemetry.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+46723 INFO: Processing standard module hook 'hook-jinja2.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+48004 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48005 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+48016 INFO: Processing standard module hook 'hook-setuptools.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+48030 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48061 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48062 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+48072 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48073 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+48210 INFO: Processing standard module hook 'hook-_osx_support.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+48227 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+48507 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+48509 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+49067 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+49068 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+49715 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+49716 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+50107 INFO: Processing standard module hook 'hook-difflib.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+50227 INFO: Processing standard module hook 'hook-pygments.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+132 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+147 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+128 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+59164 INFO: Processing standard module hook 'hook-certifi.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+59515 INFO: Processing standard module hook 'hook-cryptography.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+129 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+142 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+62230 INFO: hook-cryptography: cryptography does not seem to be using dynamically linked OpenSSL.
+62524 INFO: Processing standard module hook 'hook-uvicorn.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+135 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+63501 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\pre_find_module_path'
+63502 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+64346 INFO: Processing standard module hook 'hook-_tkinter.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+64401 INFO: Analyzing hidden import 'flowremote.connectors'
+64403 INFO: Analyzing hidden import 'flowremote.connectors.demo'
+64405 INFO: Analyzing hidden import 'flowremote.devtools.seed_demoday'
+64412 INFO: Analyzing hidden import 'uvicorn.__main__'
+64414 INFO: Analyzing hidden import 'uvicorn.lifespan'
+64415 INFO: Analyzing hidden import 'uvicorn.lifespan.off'
+64417 INFO: Analyzing hidden import 'uvicorn.lifespan.on'
+64424 INFO: Analyzing hidden import 'uvicorn.loops'
+64424 INFO: Analyzing hidden import 'uvicorn.loops.asyncio'
+64426 INFO: Analyzing hidden import 'uvicorn.loops.auto'
+64429 INFO: Analyzing hidden import 'uvicorn.loops.zuvloop'
+64430 INFO: Analyzing hidden import 'uvicorn.protocols.http.auto'
+64431 INFO: Analyzing hidden import 'uvicorn.protocols.websockets.auto'
+64433 INFO: Analyzing hidden import 'uvicorn.workers'
+64438 INFO: Analyzing hidden import 'openai.lib.browser'
+64511 INFO: Analyzing hidden import 'openai.lib.decisions_tool_runner'
+64534 INFO: Analyzing hidden import 'openai.lib.live'
+64573 INFO: Analyzing hidden import 'openai.lib.responses_tool_runner'
+64705 INFO: Analyzing hidden import 'openai.lib.responses_websocket'
+64756 INFO: Analyzing hidden import 'openai.types.beta.chat'
+64759 INFO: Analyzing hidden import 'openai.types.containers.files'
+64763 INFO: Analyzing hidden import 'openai.types.skills.versions'
+64765 INFO: Analyzing hidden import 'psycopg._dns'
+64776 INFO: Analyzing hidden import 'psycopg.crdb'
+64788 INFO: Analyzing hidden import 'psycopg.pq._debug'
+64793 INFO: Analyzing hidden import 'psycopg.types.hstore'
+64801 INFO: Analyzing hidden import 'psycopg.types.shapely'
+64807 INFO: Analyzing hidden import 'cryptography.cobblestone'
+64808 INFO: Analyzing hidden import 'cryptography.hazmat._oid'
+64820 INFO: Analyzing hidden import 'cryptography.hazmat.asn1'
+64835 INFO: Analyzing hidden import 'cryptography.hazmat.backends'
+64882 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.dh'
+64888 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.dsa'
+64893 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.ed25519'
+64896 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.ed448'
+64900 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.mldsa'
+64910 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.mlkem'
+64916 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.asymmetric.types'
+64926 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.ciphers.aead'
+64928 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.cmac'
+64929 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.constant_time'
+64930 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.hpke'
+64932 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf'
+64933 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.argon2'
+64935 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.concatkdf'
+64937 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.hkdf'
+64938 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.kbkdf'
+64940 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.pbkdf2'
+64941 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.scrypt'
+64942 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.kdf.x963kdf'
+64943 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.keywrap'
+64945 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.poly1305'
+64946 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.serialization'
+64999 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.serialization.pkcs12'
+65139 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.serialization.pkcs7'
+65150 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.twofactor'
+65152 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.twofactor.hotp'
+65158 INFO: Analyzing hidden import 'cryptography.hazmat.primitives.twofactor.totp'
+65160 INFO: Analyzing hidden import 'cryptography.x509.ocsp'
+65170 INFO: Analyzing hidden import 'openpyxl.compat.abc'
+65172 INFO: Analyzing hidden import 'openpyxl.compat.product'
+65173 INFO: Analyzing hidden import 'openpyxl.compat.singleton'
+65174 INFO: Analyzing hidden import 'openpyxl.descriptors.slots'
+65176 INFO: Analyzing hidden import 'openpyxl.packaging.interface'
+65178 INFO: Analyzing hidden import 'openpyxl.utils.dataframe'
+65181 INFO: Analyzing hidden import 'openpyxl.utils.inference'
+65183 INFO: Analyzing hidden import 'openpyxl.worksheet.cell_watch'
+65185 INFO: Analyzing hidden import 'openpyxl.worksheet.controls'
+65193 INFO: Analyzing hidden import 'openpyxl.worksheet.custom'
+65195 INFO: Analyzing hidden import 'openpyxl.worksheet.errors'
+65198 INFO: Analyzing hidden import 'openpyxl.worksheet.picture'
+65199 INFO: Analyzing hidden import 'openpyxl.worksheet.smart_tag'
+65202 INFO: Processing module hooks (post-graph stage)...
+68400 INFO: Processing standard module hook 'hook-_tkinter.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks'
+68401 INFO: Processing standard module hook 'hook-tzdata.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+150 WARNING: Assuming this is not an Anaconda environment or an additional venv/pipenv/... environment manager is being used on top, because the conda-meta folder E:\knight_hell\.venv\conda-meta does not exist.
+69203 INFO: Performing binary vs. data reclassification (1598 entries)
+69371 INFO: Looking for ctypes DLLs
+69427 INFO: Analyzing run-time hooks ...
+69444 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+69448 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+69451 INFO: Including run-time hook 'pyi_rth_cryptography_openssl.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks'
+69453 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+69455 INFO: Including run-time hook 'pyi_rth__tkinter.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+69458 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'E:\\knight_hell\\.venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+69538 INFO: Creating base_library.zip...
+69565 INFO: Looking for dynamic libraries
+73752 INFO: Extra DLL search directories (AddDllDirectory): ['E:\\knight_hell\\.venv\\Lib\\site-packages\\psycopg_binary.libs']
+73752 INFO: Extra DLL search directories (PATH): []
+74665 INFO: Warnings written to E:\knight_hell\build\flowremote_demo\warn-flowremote_demo.txt
+74928 INFO: Graph cross-reference written to E:\knight_hell\build\flowremote_demo\xref-flowremote_demo.html
+75025 INFO: checking PYZ
+75189 INFO: checking PKG
+75201 INFO: Building because toc changed
+75201 INFO: Building PKG (CArchive) FlowRemoteDemo.pkg
+80563 INFO: Building PKG (CArchive) FlowRemoteDemo.pkg completed successfully.
+80587 INFO: Bootloader E:\knight_hell\.venv\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+80587 INFO: checking EXE
+80599 INFO: Building because toc changed
+80599 INFO: Building EXE from EXE-00.toc
+80602 INFO: Copying bootloader EXE to E:\knight_hell\dist\FlowRemoteDemo.exe
+80612 INFO: Copying icon to EXE
+80621 INFO: Copying 0 resources to EXE
+80621 INFO: Embedding manifest in EXE
+80628 INFO: Appending PKG archive to EXE
+80650 INFO: Fixing EXE headers
+80792 INFO: Building EXE from EXE-00.toc completed successfully.
+80822 INFO: Build complete! The results are available in: E:\knight_hell\dist

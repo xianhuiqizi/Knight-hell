@@ -32,6 +32,7 @@ from flowremote.api.routes import suggestions as suggestion_routes
 from flowremote.api.routes import sync as sync_routes
 from flowremote.api.routes import tasks as task_routes
 from flowremote.api.routes import uploads as upload_routes
+from flowremote.api.routes import usability as usability_routes
 from flowremote.api.sessions import SessionSigner, load_or_create_secret
 from flowremote.control_plane.ai_settings import AISettingCipher
 from flowremote.control_plane.db import (
@@ -42,6 +43,7 @@ from flowremote.control_plane.db import (
     StorageBackend,
     resolve_storage_config,
 )
+from flowremote.control_plane.normalization_worker import NormalizationWorker
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 UI_ROOT = PACKAGE_ROOT / "ui"
@@ -66,9 +68,15 @@ def create_app(
         # Make sure the schema exists before the first request.
         with database_factory(url) as db:
             db.apply_migrations()
-        yield
+        worker = NormalizationWorker(database_factory, url, app.state.upload_dir)
+        app.state.normalization_worker = worker
+        worker.start()
+        try:
+            yield
+        finally:
+            worker.close()
 
-    app = FastAPI(title="FlowRemote", version="0.9.0", lifespan=lifespan)
+    app = FastAPI(title="FlowRemote", version="0.10.0", lifespan=lifespan)
     app.state.database_url = url
     app.state.database_factory = database_factory
     app.state.storage = storage
@@ -113,6 +121,7 @@ def create_app(
     app.include_router(settings_routes.router)
     app.include_router(upload_routes.router)
     app.include_router(normalization_routes.router)
+    app.include_router(usability_routes.router)
     app.include_router(task_routes.router)
     app.include_router(review_routes.router)
     app.include_router(sync_routes.router)

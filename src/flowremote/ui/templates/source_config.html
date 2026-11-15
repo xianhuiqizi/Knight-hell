@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Check file recognition - FlowRemote{% endblock %}
+{% block content %}
+<a class="back" href="/tasks/{{ task.id }}">← Back to task</a>
+<div class="page-head"><p class="eyebrow">CHECK YOUR FILE</p><h1>Check file recognition</h1>
+  <p class="sub">{{ file.filename }} · Choose the right sheet, header and columns before cleaning.</p></div>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if not editable %}<p class="notice">Processing has started. These settings are read-only.</p>{% endif %}
+<section class="panel">
+  <h2>1. Choose the table</h2>
+  <form method="get" class="source-grid">
+    <label class="field-label">Worksheet
+      <select name="worksheet">{% for sheet in sheets %}<option {% if sheet == options.get('worksheet', table.worksheet if table else '') %}selected{% endif %}>{{ sheet }}</option>{% endfor %}</select></label>
+    <label class="field-label">Header row
+      <input name="header_row" type="number" min="1" max="1000" value="{{ options.get('header_row') or (table.header_row if table else 1) }}" required></label>
+    <button class="btn-ghost" type="submit">Refresh preview</button>
+  </form>
+  {% if templates %}<form method="get" class="source-grid template-picker">
+    <label class="field-label">Saved template<select name="template">{% for template in templates %}<option value="{{ template.id }}">{{ template.name }}</option>{% endfor %}</select></label>
+    <button class="btn-ghost">Load template</button><span class="small muted">Check the column positions before applying a template to a new file.</span>
+  </form>{% endif %}
+</section>
+{% if table %}
+<section class="panel"><h2>First five rows</h2><div class="table-wrap"><table class="table preview-table"><thead><tr>
+{% for header in table.headers %}<th data-i18n-skip>{{ header or '(blank)' }}</th>{% endfor %}</tr></thead><tbody>
+{% for row in table.rows[:5] %}<tr>{% for value in row %}<td data-i18n-skip>{{ value if value is not none else '' }}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div><p class="small muted">{{ table.row_count }} data rows · {{ table.worksheet }} · header {{ table.header_row }}</p></section>
+<form method="post" class="panel">
+<fieldset {% if not editable %}disabled{% endif %}>
+  <input type="hidden" name="worksheet" value="{{ table.worksheet }}"><input type="hidden" name="header_row" value="{{ table.header_row }}">
+  <h2>2. Match your columns</h2><p class="small muted">Each required field needs a different source column. Unit is optional.</p>
+  <div class="source-grid mapping-grid">{% for field in fields %}<label class="field-label">{{ field }}{% if field != 'unit' %} *{% endif %}
+    <select name="column_{{ field }}" {% if field != 'unit' %}required{% endif %}><option value="">Not supplied</option>
+      {% for header in table.headers %}<option data-i18n-skip value="{{ loop.index0 }}" {% if columns.get(field)|string == loop.index0|string %}selected{% endif %}>{{ loop.index }} · {{ header }}</option>{% endfor %}
+    </select></label>{% endfor %}</div>
+  <h2>3. Set business rules</h2><div class="source-grid">
+    <label class="field-label">Pieces per box<input type="number" min="1" max="100000" name="box_to_piece" value="{{ options.get('box_to_piece', 12) }}" required></label>
+    <label class="field-label">Price unit<select name="price_multiplier">
+      {% for value, label in [('auto','Detect from headers'),('1','CNY'),('1000','Thousand CNY')] %}<option value="{{ value }}" {% if options.get('price_multiplier','auto')|string == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="field-label">Date format<select name="date_order">
+      {% for value, label in [('auto','Detect automatically'),('day-first','Day / month / year'),('month-first','Month / day / year')] %}<option value="{{ value }}" {% if options.get('date_order','auto') == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  </div>
+  <p class="rule-example">Example: 2 boxes become <strong data-box-example>{{ options.get('box_to_piece', 12)|int * 2 }}</strong> pieces. The total amount is preserved; unit price is adjusted.</p>
+  <label class="field-label">Save as a template (optional)<input name="template_name" maxlength="80" placeholder="e.g. Warehouse monthly orders"></label>
+  <p class="small muted">Templates are private to your account. A template with the same name will be updated.</p>
+  <button class="btn-primary" type="submit">Save and check recognition</button>
+</fieldset></form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,5 @@
+<nav class="cleanup-steps" aria-label="Cleanup steps">
+{% for label in ['Upload files', 'Check recognition', 'Clean data', 'Review issues', 'Preview and download'] %}
+<div class="cleanup-step {{ 'is-current' if step|default(1) == loop.index else 'is-done' if step|default(1) > loop.index }}" {% if step|default(1) == loop.index %}aria-current="step"{% endif %}>
+<span>{{ '✓' if step|default(1) > loop.index else loop.index }}</span><strong>{{ label }}</strong></div>
+{% endfor %}</nav>

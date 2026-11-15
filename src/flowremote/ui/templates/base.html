@@ -7,17 +7,17 @@
   <title>{% block title %}FlowRemote{% endblock %}</title>
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/app.css?v=20261118r">
+  <link rel="stylesheet" href="/static/app.css?v=20261115u2">
   <script>
     window.FLOWREMOTE_LANG = {{ lang|default('en')|tojson }};
     window.FLOWREMOTE_I18N = {{ i18n_dictionary|default('{}')|safe }};
     window.FLOWREMOTE_I18N_PATTERNS = {{ i18n_patterns|default('[]')|safe }};
   </script>
-  <script src="/static/i18n.js?v=20261118r" defer></script>
-  <script src="/static/app.js?v=20261118r" defer></script>
-  <script src="/static/sync-client.js?v=20261118r" defer></script>
-  <script src="/static/guide-config.js?v=20261118r" defer></script>
-  <script src="/static/guide.js?v=20261118r" defer></script>
+  <script src="/static/i18n.js?v=20261115u2" defer></script>
+  <script src="/static/app.js?v=20261115u2" defer></script>
+  <script src="/static/sync-client.js?v=20261115u2" defer></script>
+  <script src="/static/guide-config.js?v=20261115u2" defer></script>
+  <script src="/static/guide.js?v=20261115u2" defer></script>
 </head>
 <body
   data-user-id="{{ user.id if user else '' }}"
@@ -27,7 +27,7 @@
   <header class="topbar">
     <a class="brand" href="/">
       <span class="mark">FR</span>
-      <span class="brand-text">FlowRemote<small>Live RPA</small></span>
+      <span class="brand-text">FlowRemote<small>Live RPA · v{{ request.app.version }}</small></span>
     </a>
     {% if user %}
     <div class="who">
@@ -82,6 +82,11 @@
       </div>
       <p class="muted small">Connect an OpenAI-compatible endpoint for AI assistance, or use the
         local Offline Demo AI. AI remains advisory; approval and execution still require a person.</p>
+      <label class="field-label">Choose your AI service
+        <select id="ai-service-preset"><option value="offline">Offline rules · no key needed</option><option value="deepseek">DeepSeek · preset</option><option value="openai">OpenAI · preset</option><option value="custom">Custom compatible service</option></select>
+      </label>
+      <p class="small muted">Choose a service, paste your key, then test and save. Use advanced settings only for a custom model or address.</p>
+      <details class="ai-advanced"><summary>Advanced connection settings</summary>
       <label class="field-label">Provider
         <select name="provider" id="ai-provider">
           <option value="openai">OpenAI-compatible</option>
@@ -102,6 +107,7 @@
                  placeholder="https://api.deepseek.com">
         </label>
       </div>
+      </details>
       <label class="field-label">API key
         <input name="api_key" id="ai-api-key" type="password" maxlength="4096"
                autocomplete="new-password" placeholder="Paste the key for this test">
@@ -111,10 +117,10 @@
          aria-live="polite"></p>
       <div class="ai-fallback-notice" id="ai-fallback-notice" role="status" hidden></div>
       <div class="dialog-actions ai-dialog-actions">
-        <a class="btn-ghost" href="/settings/ai">Open full settings</a>
+        <a class="btn-ghost" href="/settings/ai">Manage saved connection</a>
         <div class="ai-dialog-buttons">
           <button class="btn-ghost" type="button" id="ai-use-offline">Use Offline Demo AI</button>
-          <button class="btn-primary" type="submit" id="ai-connect">Connect</button>
+          <button class="btn-primary" type="submit" id="ai-connect">Test and save</button>
         </div>
       </div>
       <p class="small muted">The test has a 5-second budget. A failed or unkeyed online test

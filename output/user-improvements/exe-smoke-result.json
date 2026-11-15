@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "version": "0.10.0",
+  "checks": {
+    "health": 200,
+    "demo": 200,
+    "login": 303,
+    "dashboard": 200,
+    "settings": 200,
+    "signup": 303,
+    "onboarding": 200,
+    "onboarding_complete": 303,
+    "guide_script": 200,
+    "light_theme": 200,
+    "example": 303,
+    "review_NIS-B239A928DE": 200,
+    "review_NIS-0E0A0B54BB": 200,
+    "review_NIS-4D72975E02": 200,
+    "review_NIS-99B3429220": 200,
+    "review_NIS-54C2F7DE10": 200,
+    "review_NIS-2435BF9C0C": 200,
+    "finish": 303,
+    "preview": 200,
+    "download": 200,
+    "workbook": 200
+  }
+}

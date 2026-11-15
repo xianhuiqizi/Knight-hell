@@ -139,7 +139,22 @@ def _rows_after_header(
     return tuple(data), tuple(numbers)
 
 
-def _scan_xlsx(data: bytes) -> DetectedTable:
+def _select_header(scanned, header_row):
+    if header_row is None:
+        return _find_header(scanned)
+    try:
+        number = int(header_row)
+    except (TypeError, ValueError) as exc:
+        raise NormalizationError("Header row must be a positive integer.") from exc
+    if not 1 <= number <= MAX_HEADER_ROW:
+        raise NormalizationError(f"Header row must be between 1 and {MAX_HEADER_ROW}.")
+    for position, (row_number, values) in enumerate(scanned):
+        if row_number == number:
+            return row_number, values, position
+    raise NormalizationError("The selected header row is empty or does not exist.")
+
+
+def _scan_xlsx(data: bytes, worksheet: str | None = None, header_row: int | None = None) -> DetectedTable:
     try:
         with ZipFile(BytesIO(data)) as archive:
             if (
@@ -158,6 +173,8 @@ def _scan_xlsx(data: bytes) -> DetectedTable:
         best: DetectedTable | None = None
         best_score: tuple[int, int, int] = (0, 0, 0)
         for sheet in workbook.worksheets:
+            if worksheet and sheet.title != worksheet:
+                continue
             sheet.reset_dimensions()
             scanned: list[tuple[int, Sequence[Any]]] = []
             try:
@@ -172,14 +189,14 @@ def _scan_xlsx(data: bytes) -> DetectedTable:
                         )
                 if not scanned:
                     continue
-                header_row, header, position = _find_header(scanned)
+                selected_row, header, position = _select_header(scanned, header_row)
                 rows, row_numbers = _rows_after_header(scanned, position)
             except NormalizationError:
                 continue
             candidate = DetectedTable(
                 file_type="xlsx",
                 worksheet=sheet.title,
-                header_row=header_row,
+                header_row=selected_row,
                 headers=tuple(display_text(value) for value in header),
                 rows=rows,
                 row_numbers=row_numbers,
@@ -216,7 +233,7 @@ def _detect_delimiter(text: str) -> str:
         return max((",", ";", "\t", "|"), key=first.count)
 
 
-def _scan_csv(data: bytes) -> DetectedTable:
+def _scan_csv(data: bytes, header_row: int | None = None) -> DetectedTable:
     text, _encoding = _decode_csv(data)
     delimiter = _detect_delimiter(text)
     scanned: list[tuple[int, Sequence[Any]]] = []
@@ -232,12 +249,12 @@ def _scan_csv(data: bytes) -> DetectedTable:
             )
     if not scanned:
         raise NormalizationError("The CSV file is empty.")
-    header_row, header, position = _find_header(scanned)
+    selected_row, header, position = _select_header(scanned, header_row)
     rows, row_numbers = _rows_after_header(scanned, position)
     return DetectedTable(
         file_type="csv",
         worksheet="CSV",
-        header_row=header_row,
+        header_row=selected_row,
         headers=tuple(display_text(value) for value in header),
         rows=rows,
         row_numbers=row_numbers,
@@ -246,15 +263,15 @@ def _scan_csv(data: bytes) -> DetectedTable:
     )
 
 
-def detect_table(filename: str, data: bytes) -> DetectedTable:
+def detect_table(filename: str, data: bytes, *, worksheet: str | None = None, header_row: int | None = None) -> DetectedTable:
     """Locate the best table without trusting the first worksheet or row."""
     suffix = PurePath(str(filename or "")).suffix.lower()
     if not data:
         raise NormalizationError("The file is empty.")
     if suffix == ".csv":
-        return _scan_csv(data)
+        return _scan_csv(data, header_row)
     if suffix == ".xlsx":
-        return _scan_xlsx(data)
+        return _scan_xlsx(data, worksheet, header_row)
     raise NormalizationError("Only .xlsx and .csv source files are accepted.")
 
 
@@ -697,6 +714,7 @@ def normalize_table(
     source_file_id: str = "",
     file_ordinal: int = 0,
     customer_lookup: dict[str, str] | None = None,
+    box_to_piece: int = BOX_TO_PIECE,
 ) -> list[NormalizedSourceRow]:
     """Turn one detected table into provenance-aware source rows."""
     columns = mapping.by_field()
@@ -873,15 +891,15 @@ def normalize_table(
         # it and ask for confirmation.
         if unit == "box" and quantity is not None and unit_price_decimal is not None:
             if amount_decimal is not None and _close(amount_decimal, quantity * unit_price_decimal):
-                new_quantity = quantity * BOX_TO_PIECE
-                new_price = unit_price_decimal / BOX_TO_PIECE
+                new_quantity = quantity * box_to_piece
+                new_price = unit_price_decimal / box_to_piece
                 changes.extend(
                     [
                         _change(
                             "quantity",
                             raw_quantity,
                             new_quantity,
-                            "Converted boxes to pieces (1 box = 12 pieces).",
+                            f"Converted boxes to pieces (1 box = {box_to_piece} pieces).",
                         ),
                         _change(
                             "unit",
@@ -893,7 +911,7 @@ def normalize_table(
                             "unit_price",
                             raw_unit_price,
                             new_price,
-                            "Converted price from per box to per piece (1 box = 12 pieces).",
+                            f"Converted price from per box to per piece (1 box = {box_to_piece} pieces).",
                         ),
                     ]
                 )
@@ -901,17 +919,17 @@ def normalize_table(
                 unit = "piece"
                 unit_price_decimal = new_price
             elif amount_decimal is not None and _close(
-                amount_decimal, quantity * BOX_TO_PIECE * unit_price_decimal
+                amount_decimal, quantity * box_to_piece * unit_price_decimal
             ):
                 issues.append(
                     _issue(
                         "unit_conflict",
                         "unit",
                         raw_unit,
-                        "The unit says box, but the amount equals quantity × 12 × price. "
+                        f"The unit says box, but the amount equals quantity × {box_to_piece} × price. "
                         "Confirm whether the quantity is already in pieces.",
                         suggested_value=(
-                            f"{quantity * BOX_TO_PIECE} piece @ "
+                            f"{quantity * box_to_piece} piece @ "
                             f"{_money(unit_price_decimal):.2f}"
                         ),
                         confidence=0.88,
@@ -1090,6 +1108,7 @@ def run_full_normalization(
     sources: Sequence[tuple[str, bytes]],
     *,
     customer_lookup: dict[str, str] | None = None,
+    box_to_piece: int = BOX_TO_PIECE,
 ) -> dict[str, Any]:
     """Pure end-to-end run used by tests, seed verification and idempotency checks.
 
